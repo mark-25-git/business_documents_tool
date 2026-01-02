@@ -26,6 +26,9 @@ type PDFCustomer = {
   name: string;
   phone?: string;
   address?: string;
+  shippingName?: string;
+  shippingAddress?: string;
+  shippingPhone?: string;
 };
 
 type DocumentPDFProps = {
@@ -35,7 +38,8 @@ type DocumentPDFProps = {
   customer: PDFCustomer | null;
   items: PDFItem[];
   currency?: string;
-  imageUrl?: string; // Optional image URL for company chop
+  imageUrl?: string;
+  isDeliveryOrder?: boolean;
 };
 
 const formatCurrency = (value: number) =>
@@ -247,16 +251,18 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
   items,
   currency = "MYR",
   imageUrl,
+  isDeliveryOrder: isDeliveryOrderProp,
 }) => {
-  const isDeliveryOrder =
+  const isDeliveryOrder = isDeliveryOrderProp ?? (
     docType.trim().toLowerCase() === "delivery order" ||
-    docType.trim().toLowerCase() === "delivery order.";
+    docType.trim().toLowerCase() === "delivery order."
+  );
   const subtotal = items.reduce(
     (sum, item) =>
       sum +
       Number(
         item.amount ??
-          Number(item.quantity || 0) * Number(item.unitPrice || 0)
+        Number(item.quantity || 0) * Number(item.unitPrice || 0)
       ),
     0
   );
@@ -280,16 +286,34 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
         <View style={styles.billingSection}>
           <View style={styles.billingGrid}>
             <View style={styles.billingLeft}>
-              <Text style={styles.label}>To</Text>
+              <Text style={styles.label}>{isDeliveryOrder ? 'Ship To' : 'To'}</Text>
               {customer ? (
                 <>
-                  <Text style={styles.value}>{customer.name}</Text>
-                  {customer.phone && (
-                    <Text style={styles.value}>{customer.phone}</Text>
-                  )}
-                  {customer.address && (
-                    <Text style={styles.value}>{customer.address.split('\n').join('\n')}</Text>
-                  )}
+                  {(() => {
+                    const resolvedName = isDeliveryOrder
+                      ? (customer.shippingName?.trim() || customer.name?.trim())
+                      : customer.name?.trim();
+
+                    const resolvedPhone = isDeliveryOrder
+                      ? (customer.shippingPhone?.trim() || customer.phone?.trim())
+                      : customer.phone?.trim();
+
+                    const resolvedAddress = isDeliveryOrder
+                      ? (customer.shippingAddress?.trim() || customer.address?.trim())
+                      : customer.address?.trim();
+
+                    return (
+                      <>
+                        <Text style={styles.value}>{resolvedName}</Text>
+                        {resolvedPhone && (
+                          <Text style={styles.value}>{resolvedPhone}</Text>
+                        )}
+                        {resolvedAddress && (
+                          <Text style={styles.value}>{resolvedAddress}</Text>
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               ) : (
                 <Text style={styles.value}>No customer selected</Text>
@@ -374,7 +398,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
                           {formatCurrency(
                             Number(
                               item.amount ??
-                                Number(item.quantity || 0) * Number(item.unitPrice || 0)
+                              Number(item.quantity || 0) * Number(item.unitPrice || 0)
                             )
                           )}
                         </Text>

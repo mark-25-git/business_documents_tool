@@ -4,6 +4,12 @@ export type Customer = {
   phone: string;
   address: string;
   email: string;
+  billingAddress?: string;
+  billingPhone?: string;
+  billingEmail?: string;
+  shippingName?: string;
+  shippingAddress?: string;
+  shippingPhone?: string;
   createdAt?: string;
 };
 
@@ -28,6 +34,12 @@ export type InvoiceDocument = {
   totalAmount: number;
   status: string; // 'PAID', 'PENDING', 'DRAFT'
   notes?: string;
+  billingAddress?: string;
+  billingPhone?: string;
+  billingEmail?: string;
+  shippingName?: string;
+  shippingAddress?: string;
+  shippingPhone?: string;
   items?: LineItem[];
 };
 
@@ -39,6 +51,12 @@ export type CreateDocumentPayload = {
   totalAmount: number;
   status: string;
   notes?: string;
+  billingAddress: string;
+  billingPhone: string;
+  billingEmail: string;
+  shippingName: string;
+  shippingAddress: string;
+  shippingPhone: string;
   items: LineItem[];
 };
 

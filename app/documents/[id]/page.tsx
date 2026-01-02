@@ -62,8 +62,8 @@ export default function DocumentViewPage() {
   );
 
   const deliveryItem = React.useMemo(
-    () => (doc?.items || []).find(i => 
-      i.description.toLowerCase().includes('delivery') || 
+    () => (doc?.items || []).find(i =>
+      i.description.toLowerCase().includes('delivery') ||
       i.description.toLowerCase().includes('free delivery')
     ),
     [doc?.items]
@@ -81,6 +81,10 @@ export default function DocumentViewPage() {
     []
   );
 
+  // Helper for delivery order detection
+  const isDocTypeDO = (type: string) =>
+    type.toUpperCase().includes('DELIVERY') || type.toUpperCase().includes('D.O') || type.toUpperCase() === 'DO';
+
   const pdfDocument = React.useMemo(() => {
     if (!doc) return null;
     return (
@@ -88,29 +92,25 @@ export default function DocumentViewPage() {
         docType={documentTypeLabels[doc.type] || doc.type}
         docNumber={doc.docNumber}
         issueDate={doc.date}
-        customer={
-          customer
-            ? {
-                name: customer.name,
-                phone: customer.phone,
-                address: customer.address,
-              }
-            : {
-                name: doc.customerName,
-                phone: "",
-                address: "",
-              }
-        }
+        customer={{
+          name: doc.customerName,
+          phone: doc.billingPhone || customer?.phone || "",
+          address: doc.billingAddress || customer?.address || "",
+          shippingName: doc.shippingName,
+          shippingAddress: doc.shippingAddress,
+          shippingPhone: doc.shippingPhone,
+        }}
         items={doc.items || []}
         currency="MYR"
         imageUrl={imageUrl}
+        isDeliveryOrder={doc.type === 'DELIVERY_ORDER' || isDocTypeDO(doc.type)}
       />
     );
   }, [doc, customer, imageUrl]);
 
   // Generate document prefix for filename
   const getDocumentPrefix = (docType: string): string => {
-    if (docType === 'DELIVERY_ORDER') {
+    if (isDocTypeDO(docType)) {
       return 'DO';
     }
     return docType.charAt(0); // First letter: I, Q, R
@@ -127,12 +127,12 @@ export default function DocumentViewPage() {
   // Download PDF with specific document type
   const downloadPDF = async (docType?: string) => {
     if (!doc) return;
-    
+
     // Use provided type or current document type
     const targetType = docType || doc.type;
     // Use original date if same type, current date if different type
     const issueDate = (targetType === doc.type) ? doc.date : new Date().toISOString().split('T')[0];
-    
+
     try {
       // Create PDF document with selected type and current date
       const pdfDoc = (
@@ -140,22 +140,18 @@ export default function DocumentViewPage() {
           docType={documentTypeLabels[targetType] || targetType}
           docNumber={doc.docNumber}
           issueDate={issueDate}
-          customer={
-            customer
-              ? {
-                  name: customer.name,
-                  phone: customer.phone,
-                  address: customer.address,
-                }
-              : {
-                  name: doc.customerName,
-                  phone: "",
-                  address: "",
-                }
-          }
+          customer={{
+            name: doc.customerName,
+            phone: doc.billingPhone || customer?.phone || "",
+            address: doc.billingAddress || customer?.address || "",
+            shippingName: doc.shippingName,
+            shippingAddress: doc.shippingAddress,
+            shippingPhone: doc.shippingPhone,
+          }}
           items={doc.items || []}
           currency="MYR"
           imageUrl={imageUrl}
+          isDeliveryOrder={targetType === 'DELIVERY_ORDER' || isDocTypeDO(targetType)}
         />
       );
 
@@ -163,16 +159,16 @@ export default function DocumentViewPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       // Use appropriate prefix for the target type
       const prefix = getDocumentPrefix(targetType);
       const filename = `${prefix}${doc.docNumber}.pdf`;
       link.download = filename;
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -185,7 +181,7 @@ export default function DocumentViewPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-24">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between no-print">
           <div className="flex items-center gap-4">
@@ -204,7 +200,7 @@ export default function DocumentViewPage() {
           {/* Main Form */}
           <Card className="border-none shadow-lg no-print">
             <CardContent className="p-8 space-y-6">
-              
+
               {/* Document Type Selection (Download Buttons) */}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-500 block mb-2">Document type</label>
@@ -213,11 +209,10 @@ export default function DocumentViewPage() {
                     <button
                       key={t}
                       onClick={() => downloadPDF(t)}
-                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                        doc.type === t 
-                          ? 'bg-primary text-primary-foreground hover:opacity-90' 
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${doc.type === t
+                        ? 'bg-primary text-primary-foreground hover:opacity-90'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                     >
                       Download {documentTypeLabels[t]}
                     </button>
@@ -242,9 +237,9 @@ export default function DocumentViewPage() {
                   <label className="text-sm font-semibold text-gray-500 block mb-2">
                     Date
                   </label>
-                  <Input 
-                    type="date" 
-                    value={doc.date.split('T')[0]} 
+                  <Input
+                    type="date"
+                    value={doc.date.split('T')[0]}
                     disabled
                     className="w-full bg-gray-50"
                   />
@@ -252,17 +247,46 @@ export default function DocumentViewPage() {
               </div>
 
               {/* Customer Selection (Display Only) */}
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-500 block mb-2">Customer</label>
+              <div className="space-y-4">
+                <label className="text-sm font-semibold text-gray-500 block mb-2">Customer Details</label>
+
+                {/* Billing Card */}
                 <div className="p-4 bg-gray-50 rounded-md border border-gray-200">
-                  <div className="font-bold text-lg">{customer?.name || doc.customerName}</div>
-                  {customer && (
-                    <>
-                      <div className="text-gray-600 text-sm mt-1">{customer.phone}</div>
-                      <div className="text-gray-600 text-sm">{customer.address}</div>
-                    </>
-                  )}
+                  <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">Billing Details</div>
+                  <div className="font-bold text-lg text-gray-900">{doc.customerName}</div>
+                  <div className="text-gray-600 text-sm mt-1">{doc.billingPhone || customer?.phone}</div>
+                  <div className="text-gray-600 text-sm">{doc.billingAddress || customer?.address}</div>
+                  {doc.billingEmail && <div className="text-gray-600 text-sm">{doc.billingEmail}</div>}
                 </div>
+
+                {/* Shipping Card (Show whenever shipping info is unique) */}
+                {(() => {
+                  const sName = (doc.shippingName || "").trim();
+                  const sAddr = (doc.shippingAddress || "").trim();
+                  const sPhone = (doc.shippingPhone || "").trim();
+
+                  const bName = (doc.customerName || "").trim();
+                  const bAddr = (doc.billingAddress || customer?.address || "").trim();
+                  const bPhone = (doc.billingPhone || customer?.phone || "").trim();
+
+                  const hasUniqueName = sName !== "" && sName !== bName;
+                  const hasUniqueAddress = sAddr !== "" && sAddr !== bAddr;
+                  const hasUniquePhone = sPhone !== "" && sPhone !== bPhone;
+
+                  // Show if ANY field is unique
+                  const shouldShowShipping = hasUniqueName || hasUniqueAddress || hasUniquePhone;
+
+                  if (!shouldShowShipping) return null;
+
+                  return (
+                    <div className="p-4 bg-blue-50/50 rounded-md border border-blue-100 animate-in fade-in slide-in-from-top-1">
+                      <div className="text-[10px] font-bold text-blue-500 uppercase mb-2">Shipping Details</div>
+                      <div className="font-bold text-gray-900">{sName || bName}</div>
+                      <div className="text-gray-600 text-sm mt-1">{sPhone || bPhone}</div>
+                      <div className="text-gray-600 text-sm">{sAddr || bAddr}</div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Line Items (Display Only) */}
@@ -271,24 +295,24 @@ export default function DocumentViewPage() {
                 {baseItems.map((item, index) => (
                   <div key={index} className="grid grid-cols-12 gap-2 items-start">
                     <div className="col-span-6">
-                      <Input 
-                        value={item.description} 
+                      <Input
+                        value={item.description}
                         disabled
                         className="bg-gray-50"
                       />
                     </div>
                     <div className="col-span-2">
-                      <Input 
-                        type="number" 
-                        value={item.quantity || ''} 
+                      <Input
+                        type="number"
+                        value={item.quantity || ''}
                         disabled
                         className="bg-gray-50"
                       />
                     </div>
                     <div className="col-span-2">
-                      <Input 
-                        type="number" 
-                        value={item.unitPrice || ''} 
+                      <Input
+                        type="number"
+                        value={item.unitPrice || ''}
                         disabled
                         className="bg-gray-50"
                       />
@@ -308,8 +332,8 @@ export default function DocumentViewPage() {
                   <label className="text-sm font-semibold text-gray-500 block mb-2">Delivery</label>
                   <div className="flex items-center gap-4">
                     <label className="flex items-center gap-2 cursor-default">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={isFreeDelivery}
                         disabled
                         className="w-4 h-4 rounded border-gray-300"
@@ -318,9 +342,9 @@ export default function DocumentViewPage() {
                     </label>
                     {!isFreeDelivery && deliveryFee > 0 && (
                       <div className="flex-1 max-w-xs">
-                        <Input 
-                          type="number" 
-                          value={deliveryFee || ''} 
+                        <Input
+                          type="number"
+                          value={deliveryFee || ''}
                           disabled
                           className="bg-gray-50"
                         />

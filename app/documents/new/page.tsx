@@ -27,6 +27,51 @@ export default function NewDocumentPage() {
   ]);
   const [notes, setNotes] = React.useState("");
 
+  // Granular Field States
+  const [billingAddress, setBillingAddress] = React.useState("");
+  const [billingPhone, setBillingPhone] = React.useState("");
+  const [billingEmail, setBillingEmail] = React.useState("");
+
+  const [isDifferentShipping, setIsDifferentShipping] = React.useState(false);
+  const [shippingName, setShippingName] = React.useState("");
+  const [shippingAddress, setShippingAddress] = React.useState("");
+  const [shippingPhone, setShippingPhone] = React.useState("");
+
+  // Sync logic: If not different, shipping = billing
+  React.useEffect(() => {
+    if (!isDifferentShipping && selectedCustomer) {
+      setShippingName(selectedCustomer.shippingName || selectedCustomer.name);
+      setShippingAddress(billingAddress);
+      setShippingPhone(billingPhone);
+    }
+  }, [isDifferentShipping, billingAddress, billingPhone, selectedCustomer]);
+
+  React.useEffect(() => {
+    if (selectedCustomer) {
+      // 1. Set Billing Defaults
+      const bAddr = selectedCustomer.billingAddress || selectedCustomer.address || "";
+      const bPhone = selectedCustomer.billingPhone || selectedCustomer.phone || "";
+      const bEmail = selectedCustomer.billingEmail || selectedCustomer.email || "";
+
+      setBillingAddress(bAddr);
+      setBillingPhone(bPhone);
+      setBillingEmail(bEmail);
+
+      // 2. Set Shipping Defaults
+      const sName = selectedCustomer.shippingName || selectedCustomer.name || "";
+      const sAddr = selectedCustomer.shippingAddress || selectedCustomer.address || "";
+      const sPhone = selectedCustomer.shippingPhone || selectedCustomer.phone || "";
+
+      setShippingName(sName);
+      setShippingAddress(sAddr);
+      setShippingPhone(sPhone);
+
+      // 3. Auto-detect if shipping is different from billing to toggle the UI
+      const hasUniqueShipping = (sName !== selectedCustomer.name) || (sAddr !== bAddr) || (sPhone !== bPhone);
+      setIsDifferentShipping(hasUniqueShipping);
+    }
+  }, [selectedCustomer]);
+
   React.useEffect(() => {
     getCustomers().then(data => {
       setCustomers(data);
@@ -51,6 +96,12 @@ export default function NewDocumentPage() {
       totalAmount,
       status: type === 'INVOICE' ? 'PENDING' : 'DRAFT', // Default status
       notes,
+      billingAddress,
+      billingPhone,
+      billingEmail,
+      shippingName: isDifferentShipping ? shippingName : selectedCustomer.name,
+      shippingAddress: isDifferentShipping ? shippingAddress : billingAddress,
+      shippingPhone: isDifferentShipping ? shippingPhone : billingPhone,
       items
     };
 
@@ -62,7 +113,7 @@ export default function NewDocumentPage() {
       // We need the docId from response, but for now we can just go to history or a success page
       // Ideally: router.push(`/documents/${res.docId}`);
       alert("Document Saved! ID: " + res.docNumber);
-      router.push('/documents'); 
+      router.push('/documents');
     } else {
       alert("Error saving: " + res.error);
     }
@@ -71,7 +122,7 @@ export default function NewDocumentPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-24">
       <div className="max-w-4xl mx-auto space-y-6">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -85,7 +136,7 @@ export default function NewDocumentPage() {
               <Printer className="h-4 w-4 mr-2" /> Print Preview
             </Button>
             <Button onClick={handleSave} disabled={isSaving}>
-              <Save className="h-4 w-4 mr-2" /> 
+              <Save className="h-4 w-4 mr-2" />
               {isSaving ? "Saving..." : "Save Document"}
             </Button>
           </div>
@@ -94,7 +145,7 @@ export default function NewDocumentPage() {
         {/* Main Form */}
         <Card className="border-none shadow-lg print:shadow-none">
           <CardContent className="p-8 space-y-8 print:p-0">
-            
+
             {/* Document Header Info */}
             <div className="flex justify-between items-start border-b pb-8">
               <div className="space-y-2">
@@ -113,12 +164,12 @@ export default function NewDocumentPage() {
                   ))}
                 </div>
               </div>
-              
+
               <div className="text-right space-y-1">
                 <div className="text-gray-500 text-sm">Date</div>
-                <Input 
-                  type="date" 
-                  value={date} 
+                <Input
+                  type="date"
+                  value={date}
                   onChange={e => setDate(e.target.value)}
                   className="w-40 text-right print:border-none print:p-0 print:h-auto print:w-auto"
                 />
@@ -130,15 +181,103 @@ export default function NewDocumentPage() {
             {/* Customer & Company Info */}
             <div className="grid grid-cols-2 gap-12">
               <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Bill To</h3>
+                <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">
+                  {type === 'DELIVERY_ORDER' ? 'Ship To' : 'Bill To'}
+                </h3>
                 {selectedCustomer ? (
-                  <div className="space-y-1">
-                    <div className="font-bold text-lg">{selectedCustomer.name}</div>
-                    <div className="text-gray-600">{selectedCustomer.address}</div>
-                    <div className="text-gray-600">{selectedCustomer.phone}</div>
-                    <div className="text-gray-600">{selectedCustomer.email}</div>
-                    <button 
-                      onClick={() => setSelectedCustomer(null)}
+                  <div className="space-y-4">
+                    <div className="font-bold text-lg">
+                      {type === 'DELIVERY_ORDER'
+                        ? (isDifferentShipping ? shippingName : selectedCustomer.name)
+                        : selectedCustomer.name
+                      }
+                    </div>
+
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Address"
+                        value={type === 'DELIVERY_ORDER'
+                          ? (isDifferentShipping ? shippingAddress : billingAddress)
+                          : billingAddress
+                        }
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (type === 'DELIVERY_ORDER' && isDifferentShipping) {
+                            setShippingAddress(val);
+                          } else {
+                            setBillingAddress(val);
+                          }
+                        }}
+                        className="text-sm print:border-none print:p-0 print:h-auto"
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          placeholder="Phone"
+                          value={type === 'DELIVERY_ORDER'
+                            ? (isDifferentShipping ? shippingPhone : billingPhone)
+                            : billingPhone
+                          }
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (type === 'DELIVERY_ORDER' && isDifferentShipping) {
+                              setShippingPhone(val);
+                            } else {
+                              setBillingPhone(val);
+                            }
+                          }}
+                          className="text-sm print:border-none print:p-0 print:h-auto"
+                        />
+                        <Input
+                          placeholder="Email"
+                          value={billingEmail}
+                          onChange={e => setBillingEmail(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-dashed print:hidden">
+                      <input
+                        type="checkbox"
+                        id="diff-shipping"
+                        checked={isDifferentShipping}
+                        onChange={e => setIsDifferentShipping(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <label htmlFor="diff-shipping" className="text-xs font-medium text-gray-700 cursor-pointer">
+                        Different Shipping Address
+                      </label>
+                    </div>
+
+                    {isDifferentShipping && (
+                      <div className="space-y-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100 mt-2 animate-in fade-in slide-in-from-top-1">
+                        <h4 className="text-[10px] font-bold text-blue-500 uppercase">Shipping Details</h4>
+                        <Input
+                          placeholder="Shipping Name (e.g. Attn: John Doe)"
+                          value={shippingName}
+                          onChange={e => setShippingName(e.target.value)}
+                          className="bg-white text-sm"
+                        />
+                        <Input
+                          placeholder="Shipping Address"
+                          value={shippingAddress}
+                          onChange={e => setShippingAddress(e.target.value)}
+                          className="bg-white text-sm"
+                        />
+                        <Input
+                          placeholder="Shipping Phone"
+                          value={shippingPhone}
+                          onChange={e => setShippingPhone(e.target.value)}
+                          className="bg-white text-sm"
+                        />
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setSelectedCustomer(null);
+                        setIsDifferentShipping(false);
+                      }}
                       className="text-xs text-red-500 hover:underline mt-2 print:hidden"
                     >
                       Change Customer
@@ -146,20 +285,20 @@ export default function NewDocumentPage() {
                   </div>
                 ) : (
                   <div className="print:hidden">
-                    <CustomerSelector 
-                      customers={customers} 
-                      onSelect={setSelectedCustomer} 
+                    <CustomerSelector
+                      customers={customers}
+                      onSelect={setSelectedCustomer}
                     />
                   </div>
                 )}
               </div>
-              
+
               <div className="text-right">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">From</h3>
-                <div className="font-bold text-lg">Megah Invoice Inc.</div>
-                <div className="text-gray-600">123 Business Street</div>
-                <div className="text-gray-600">City, Country, 12345</div>
-                <div className="text-gray-600">contact@megah.com</div>
+                <div className="font-bold text-lg text-gray-900">Perabot Megah Enterprise</div>
+                <div className="text-gray-600 text-sm">NO.12, TAMAN PERDANA</div>
+                <div className="text-gray-600 text-sm">JALAN BAKRI, 84000 MUAR, JOHOR</div>
+                <div className="text-gray-600 text-sm">perabotmegah@gmail.com</div>
               </div>
             </div>
 
@@ -171,7 +310,7 @@ export default function NewDocumentPage() {
             {/* Footer Notes */}
             <div className="border-t pt-8 mt-8">
               <label className="text-sm font-semibold text-gray-500 uppercase mb-2 block">Notes / Terms</label>
-              <textarea 
+              <textarea
                 className="w-full h-24 p-2 border rounded-md resize-none focus:outline-none focus:ring-1 ring-blue-500 print:border-none print:p-0"
                 placeholder="Enter payment terms, bank details, or thank you note..."
                 value={notes}

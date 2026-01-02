@@ -18,7 +18,7 @@ const getGASApiUrl = () => {
 export async function getCustomers(): Promise<Customer[]> {
   const GAS_API_URL = getGASApiUrl();
   if (!GAS_API_URL) return [];
-  
+
   try {
     const res = await fetch(`${GAS_API_URL}?action=getCustomers`, {
       cache: 'no-store'
@@ -52,12 +52,32 @@ export async function createCustomer(data: Omit<Customer, 'id'>) {
 }
 
 /**
+ * Update an existing customer
+ */
+export async function updateCustomer(data: Customer) {
+  const GAS_API_URL = getGASApiUrl();
+  if (!GAS_API_URL) throw new Error("API URL not configured");
+
+  try {
+    const res = await fetch(`${GAS_API_URL}?action=updateCustomer`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    return json;
+  } catch (error) {
+    console.error("Failed to update customer:", error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+/**
  * Fetch all documents
  */
 export async function getDocuments(): Promise<InvoiceDocument[]> {
   const GAS_API_URL = getGASApiUrl();
   if (!GAS_API_URL) return [];
-  
+
   try {
     const res = await fetch(`${GAS_API_URL}?action=getDocuments`, {
       cache: 'no-store'
@@ -76,7 +96,7 @@ export async function getDocuments(): Promise<InvoiceDocument[]> {
 export async function getDocument(id: string): Promise<InvoiceDocument | null> {
   const GAS_API_URL = getGASApiUrl();
   if (!GAS_API_URL) return null;
-  
+
   try {
     const res = await fetch(`${GAS_API_URL}?action=getDocument&id=${id}`, {
       cache: 'no-store'
@@ -146,22 +166,22 @@ export async function getItemSuggestions(): Promise<ItemSuggestion[]> {
     console.warn("GAS_API_URL not configured");
     return [];
   }
-  
+
   try {
     const url = `${GAS_API_URL}?action=getItemSuggestions`;
     console.log("Fetching item suggestions from:", url);
     const res = await fetch(url, {
       cache: 'no-store'
     });
-    
+
     if (!res.ok) {
       console.error("Failed to fetch item suggestions - HTTP error:", res.status, res.statusText);
       return [];
     }
-    
+
     const json = await res.json();
     console.log("Item suggestions response:", json);
-    
+
     if (json.success && Array.isArray(json.data)) {
       console.log("Found", json.data.length, "item suggestions");
       // Handle both old format (string[]) and new format (ItemSuggestion[])
