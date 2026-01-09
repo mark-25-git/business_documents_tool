@@ -92,11 +92,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   billingLeft: {
-    width: '48%',
-    height: 80, // Fixed height so it is not content-driven
+    width: '65%',
   },
   billingRight: {
-    width: '48%',
+    width: '30%',
     alignItems: 'flex-end',
   },
   billingRightContainer: {
@@ -131,9 +130,8 @@ const styles = StyleSheet.create({
   },
   itemsTable: {
     marginBottom: 3, // Reduced spacing before totals
-    minHeight: 220, // Fits ~8 line items
+    flex: 1, // Fill available space between header and footer
     flexDirection: 'column',
-    justifyContent: 'space-between',
   },
   tableHeader: {
     flexDirection: 'row',
@@ -179,15 +177,17 @@ const styles = StyleSheet.create({
     lineHeight: 1.4,
   },
   totalsSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#D1D5DB',
+    paddingTop: 8,
     alignItems: 'flex-end',
     marginTop: 3, // Reduced spacing from items table
-    width: 256,
-    marginLeft: 'auto',
+    width: '100%',
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
+    width: 256, // Keep the total label and value together on the right
     marginBottom: 8,
   },
   totalLabel: {
@@ -421,17 +421,11 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
               ))
             )}
           </View>
-          {/* Separator at bottom of items table container */}
-          <View style={{ borderBottomWidth: 1, borderBottomColor: '#D1D5DB' }} />
         </View>
 
         {/* Totals (hidden for Delivery Order) */}
         {!isDeliveryOrder && (
           <View style={styles.totalsSection}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Subtotal</Text>
-              <Text style={styles.totalValue}>{formatCurrency(subtotal)}</Text>
-            </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabelStrong}>Total</Text>
               <Text style={styles.grandTotal}>{formatCurrency(total)}</Text>
