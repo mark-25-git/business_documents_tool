@@ -142,7 +142,7 @@ function createCustomer(data) {
   const row = new Array(headers.length).fill('');
 
   const mapping = {
-    'id': id,
+    'customerid': id,
     'name': data.name,
     'phone': data.phone,
     'address': data.address,
@@ -266,25 +266,38 @@ function createDocument(data) {
   const docNumber = generateDocNumber(data.type);
   const docId = 'DOC-' + new Date().getTime();
 
-  // Save Header
-  docSheet.appendRow([
-    docId,
-    docNumber,
-    data.type,
-    data.date,
-    data.customerId,
-    data.customerName,
-    data.totalAmount,
-    data.status,
-    data.notes,
-    new Date().toISOString(),
-    data.billingAddress,
-    data.billingPhone,
-    data.billingEmail,
-    data.shippingName,
-    data.shippingAddress,
-    data.shippingPhone
-  ]);
+  // Save Header using mapping for robustness
+  const headers = docSheet.getRange(1, 1, 1, docSheet.getLastColumn()).getValues()[0].map(h => h.toString().trim().toLowerCase());
+  const idx = name => headers.indexOf(name.toLowerCase());
+  const row = new Array(headers.length).fill('');
+
+  const mapping = {
+    'docid': docId,
+    'docnumber': docNumber,
+    'type': data.type,
+    'date': data.date,
+    'customerid': data.customerId,
+    'customername': data.customerName,
+    'totalamount': data.totalAmount,
+    'status': data.status,
+    'notes': data.notes,
+    'createdat': new Date().toISOString(),
+    'billingaddress': data.billingAddress,
+    'billingphone': data.billingPhone,
+    'billingemail': data.billingEmail,
+    'shippingname': data.shippingName,
+    'shippingaddress': data.shippingAddress,
+    'shippingphone': data.shippingPhone
+  };
+
+  Object.keys(mapping).forEach(key => {
+    const colIdx = idx(key);
+    if (colIdx !== -1) {
+      row[colIdx] = mapping[key];
+    }
+  });
+
+  docSheet.appendRow(row);
 
   // Save Items
   const items = data.items.map(item => [
