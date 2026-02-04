@@ -22,7 +22,7 @@ export function LineItemsTooltip({ items, loading, mouseX, mouseY }: LineItemsTo
     const rect = tooltip.getBoundingClientRect();
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
-    
+
     let x = mouseX + 15; // Offset from cursor
     let y = mouseY + 15;
 
@@ -59,23 +59,31 @@ export function LineItemsTooltip({ items, loading, mouseX, mouseY }: LineItemsTo
         </div>
       ) : items && items.length > 0 ? (
         <div>
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Items ({items.length})
-          </h4>
-          <div className="space-y-2">
-            {items.map((item, index) => (
-              <div key={item.id || index} className="text-sm border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                <div className="font-medium text-gray-900 mb-1">{item.description}</div>
-                <div className="flex justify-between text-xs text-gray-600">
-                  <span>Qty: {item.quantity}</span>
-                  <span>Price: RM {item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  <span className="font-medium text-gray-900">
-                    RM {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
+          {(() => {
+            const filteredItems = items.filter(i => !i.description.startsWith('TAX:'));
+            if (filteredItems.length === 0) return null;
+            return (
+              <>
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  Items ({filteredItems.length})
+                </h4>
+                <div className="space-y-2">
+                  {filteredItems.map((item, index) => (
+                    <div key={item.id || index} className="text-sm border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                      <div className="font-medium text-gray-900 mb-1">{item.description}</div>
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <span>Qty: {item.quantity}</span>
+                        <span>Price: RM {item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="font-medium text-gray-900">
+                          RM {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
+              </>
+            );
+          })()}
         </div>
       ) : null}
     </div>

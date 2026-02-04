@@ -4,6 +4,7 @@ import * as React from "react";
 import { LineItem } from "@/lib/types";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
 import { Trash2, Plus } from "lucide-react";
 
 interface LineItemsEditorProps {
@@ -19,12 +20,12 @@ export function LineItemsEditor({ items, onChange }: LineItemsEditorProps) {
   const updateItem = (index: number, field: keyof LineItem, value: any) => {
     const newItems = [...items];
     const item = { ...newItems[index], [field]: value };
-    
+
     // Auto-calc amount
     if (field === 'quantity' || field === 'unitPrice') {
       item.amount = Number(item.quantity) * Number(item.unitPrice);
     }
-    
+
     newItems[index] = item;
     onChange(newItems);
   };
@@ -47,26 +48,27 @@ export function LineItemsEditor({ items, onChange }: LineItemsEditorProps) {
       {items.map((item, index) => (
         <div key={index} className="grid grid-cols-12 gap-2 items-start group">
           <div className="col-span-6">
-            <Input 
-              value={item.description} 
+            <Textarea
+              value={item.description}
               onChange={e => updateItem(index, 'description', e.target.value)}
-              placeholder="Item name"
+              placeholder="Item name / description"
+              className="min-h-[40px] py-1 resize-y"
             />
           </div>
           <div className="col-span-2">
-            <Input 
-              type="number" 
+            <Input
+              type="number"
               min="1"
-              value={item.quantity} 
+              value={item.quantity}
               onChange={e => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
             />
           </div>
           <div className="col-span-2">
-            <Input 
-              type="number" 
+            <Input
+              type="number"
               min="0"
               step="0.01"
-              value={item.unitPrice} 
+              value={item.unitPrice}
               onChange={e => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
             />
           </div>
@@ -74,7 +76,7 @@ export function LineItemsEditor({ items, onChange }: LineItemsEditorProps) {
             <div className="flex-1 text-right py-2 font-medium">
               {item.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
             </div>
-            <button 
+            <button
               onClick={() => removeItem(index)}
               className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
             >

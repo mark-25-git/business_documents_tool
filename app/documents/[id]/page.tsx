@@ -7,6 +7,7 @@ import { InvoiceDocument, Customer } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Download } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -57,7 +58,12 @@ export default function DocumentViewPage() {
 
   // Calculate totals
   const baseItems = React.useMemo(
-    () => (doc?.items || []).filter(i => i.description.trim() !== "" && !i.description.toLowerCase().includes('delivery')),
+    () => (doc?.items || []).filter(i => {
+      const desc = i.description.toLowerCase();
+      return i.description.trim() !== "" &&
+        !desc.includes('delivery') &&
+        !desc.startsWith('tax:');
+    }),
     [doc?.items]
   );
 
@@ -71,6 +77,14 @@ export default function DocumentViewPage() {
 
   const isFreeDelivery = deliveryItem?.description.toLowerCase().includes('free delivery') || false;
   const deliveryFee = deliveryItem?.amount || 0;
+
+  const taxItem = React.useMemo(
+    () => (doc?.items || []).find(i => i.description.startsWith('TAX:')),
+    [doc?.items]
+  );
+
+  const taxTitle = taxItem ? taxItem.description.replace('TAX:', '') : '';
+  const taxAmount = taxItem?.amount || 0;
 
   const subtotal = baseItems.reduce((sum, item) => sum + (item.amount || 0), 0);
   const totalAmount = doc?.totalAmount || 0;
@@ -100,13 +114,15 @@ export default function DocumentViewPage() {
           shippingAddress: doc.shippingAddress,
           shippingPhone: doc.shippingPhone,
         }}
-        items={doc.items || []}
+        items={(doc.items || []).filter(i => !i.description.startsWith('TAX:'))}
         currency="MYR"
         imageUrl={imageUrl}
         isDeliveryOrder={doc.type === 'DELIVERY_ORDER' || isDocTypeDO(doc.type)}
+        taxTitle={taxAmount > 0 ? taxTitle : undefined}
+        taxAmount={taxAmount > 0 ? taxAmount : undefined}
       />
     );
-  }, [doc, customer, imageUrl]);
+  }, [doc, customer, imageUrl, taxTitle, taxAmount]);
 
   // Generate document prefix for filename
   const getDocumentPrefix = (docType: string): string => {
@@ -148,10 +164,12 @@ export default function DocumentViewPage() {
             shippingAddress: doc.shippingAddress,
             shippingPhone: doc.shippingPhone,
           }}
-          items={doc.items || []}
+          items={(doc.items || []).filter(i => !i.description.startsWith('TAX:'))}
           currency="MYR"
           imageUrl={imageUrl}
           isDeliveryOrder={targetType === 'DELIVERY_ORDER' || isDocTypeDO(targetType)}
+          taxTitle={taxAmount > 0 ? taxTitle : undefined}
+          taxAmount={taxAmount > 0 ? taxAmount : undefined}
         />
       );
 
@@ -295,10 +313,10 @@ export default function DocumentViewPage() {
                 {baseItems.map((item, index) => (
                   <div key={index} className="grid grid-cols-12 gap-2 items-start">
                     <div className="col-span-6">
-                      <Input
+                      <Textarea
                         value={item.description}
                         disabled
-                        className="bg-gray-50"
+                        className="bg-gray-50 min-h-[40px] resize-none"
                       />
                     </div>
                     <div className="col-span-2">
@@ -368,6 +386,12 @@ export default function DocumentViewPage() {
                         <span className="font-medium">RM {deliveryFee.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     )}
+                    {taxAmount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">{taxTitle}</span>
+                        <span className="font-medium">RM {taxAmount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center border-t pt-2">
                       <span className="font-bold text-gray-900">Total</span>
                       <span className="font-bold text-2xl text-primary">
@@ -401,7 +425,7 @@ export default function DocumentViewPage() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
 

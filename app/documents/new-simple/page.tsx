@@ -8,6 +8,7 @@ import { getCustomers, createCustomer, createDocument, getItemSuggestions, ItemS
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Download, Plus, X, Search } from "lucide-react";
 import Link from "next/link";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
@@ -45,6 +46,13 @@ export default function NewDocumentSimplePage() {
   const [isSavingCustomer, setIsSavingCustomer] = React.useState(false);
   // Track which item has suggestions dropdown open (by index)
   const [openItemSuggestions, setOpenItemSuggestions] = React.useState<number | null>(null);
+
+  // Tax State
+  const [isTaxEnabled, setIsTaxEnabled] = React.useState(false);
+  const [taxTitle, setTaxTitle] = React.useState("SST 10%");
+  const [taxPercentage, setTaxPercentage] = React.useState(10);
+  const [taxAmount, setTaxAmount] = React.useState(0);
+  const [isTaxManuallyEdited, setIsTaxManuallyEdited] = React.useState(false);
 
   // Granular Field States
   const [billingAddress, setBillingAddress] = React.useState("");
@@ -183,19 +191,39 @@ export default function NewDocumentSimplePage() {
       currency="MYR"
       imageUrl={imageUrl}
       isDeliveryOrder={type === 'DELIVERY_ORDER' || isDocTypeDO(type)}
+      taxTitle={isTaxEnabled ? taxTitle : undefined}
+      taxAmount={isTaxEnabled ? taxAmount : undefined}
     />
-  ), [type, docNumber, docNumberPreview, date, selectedCustomer, previewItems, imageUrl, billingAddress, billingPhone, billingEmail, isDifferentShipping, shippingName, shippingAddress, shippingPhone]);
+  ), [type, docNumber, docNumberPreview, date, selectedCustomer, previewItems, imageUrl, billingAddress, billingPhone, billingEmail, isDifferentShipping, shippingName, shippingAddress, shippingPhone, isTaxEnabled, taxTitle, taxAmount]);
 
   const subtotal = baseItems.reduce(
     (sum, item) =>
       sum + Number(item.amount ?? Number(item.quantity || 0) * Number(item.unitPrice || 0)),
     0
   );
-  const totalAmount = previewItems.reduce(
-    (sum, item) =>
-      sum + Number(item.amount ?? Number(item.quantity || 0) * Number(item.unitPrice || 0)),
-    0
-  );
+
+  const totalAmount = React.useMemo(() => {
+    let base = previewItems.reduce(
+      (sum, item) =>
+        sum + Number(item.amount ?? Number(item.quantity || 0) * Number(item.unitPrice || 0)),
+      0
+    );
+    return base + (isTaxEnabled ? Number(taxAmount) : 0);
+  }, [previewItems, isTaxEnabled, taxAmount]);
+
+  // Auto-calculate tax amount
+  React.useEffect(() => {
+    if (isTaxEnabled && !isTaxManuallyEdited) {
+      const currentSubtotal = baseItems.reduce(
+        (sum, item) => sum + Number(item.amount ?? Number(item.quantity || 0) * Number(item.unitPrice || 0)),
+        0
+      );
+      // Tax is usually calculated on items + delivery if applicable, but user said "based on item total price"
+      // I'll stick to items total as per "item total price".
+      const calculatedTax = currentSubtotal * (taxPercentage / 100);
+      setTaxAmount(parseFloat(calculatedTax.toFixed(2)));
+    }
+  }, [baseItems, taxPercentage, isTaxEnabled, isTaxManuallyEdited]);
 
   const handleAddCustomer = async () => {
     if (!newCustomer.name) return;
@@ -249,6 +277,8 @@ export default function NewDocumentSimplePage() {
           currency="MYR"
           imageUrl={imageUrl}
           isDeliveryOrder={type === 'DELIVERY_ORDER' || isDocTypeDO(type)}
+          taxTitle={isTaxEnabled ? taxTitle : undefined}
+          taxAmount={isTaxEnabled ? taxAmount : undefined}
         />
       );
 
@@ -297,6 +327,16 @@ export default function NewDocumentSimplePage() {
     setIsSaving(true);
 
     const allItems = [...previewItems];
+
+    // Add tax as a special line item if enabled
+    if (isTaxEnabled) {
+      allItems.push({
+        description: `TAX:${taxTitle}`,
+        quantity: 1,
+        unitPrice: taxAmount,
+        amount: taxAmount,
+      });
+    }
 
     // If customer is temporary, create it first
     let customerId = selectedCustomer.id;
@@ -833,14 +873,17 @@ export default function NewDocumentSimplePage() {
                   return (
                     <div key={index} className="grid grid-cols-12 gap-2 items-start">
                       <div className="col-span-6 relative">
-                        <Input
+                        <Textarea
                           value={item.description}
                           onChange={e => {
                             updateItem(index, 'description', e.target.value);
                             setOpenItemSuggestions(index);
                           }}
-                          onFocus={() => setOpenItemSuggestions(index)}
+                          onFocus={() => {
+                            setOpenItemSuggestions(index);
+                          }}
                           placeholder="Item description"
+                          className="min-h-[40px] py-1 resize-y"
                         />
                         {itemSuggestionsList.length > 0 && (
                           <Dropdown
@@ -939,6 +982,69 @@ export default function NewDocumentSimplePage() {
                 </div>
               </div>
 
+              {/* Tax Section */}
+              <div className="border-t pt-4 space-y-3">
+                <label className="text-sm font-semibold text-gray-500 block mb-2">Tax</label>
+                <div className="space-y-4">
+                  <label className="flex items-center gap-2 cursor-pointer group w-fit">
+                    <input
+                      type="checkbox"
+                      checked={isTaxEnabled}
+                      onChange={e => {
+                        setIsTaxEnabled(e.target.checked);
+                        if (!e.target.checked) {
+                          setIsTaxManuallyEdited(false);
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 focus:outline-none cursor-pointer transition-all duration-200 checked:bg-primary checked:border-primary hover:border-primary/80"
+                      style={{ accentColor: 'hsl(var(--primary))' }}
+                    />
+                    <span className="text-sm text-gray-700 group-hover:text-gray-900">Charge Tax</span>
+                  </label>
+
+                  {isTaxEnabled && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-top-1">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Tax Title</label>
+                        <Input
+                          value={taxTitle}
+                          onChange={e => setTaxTitle(e.target.value)}
+                          placeholder="e.g. SST 10%"
+                          className="bg-white text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Tax Percentage (%)</label>
+                        <Input
+                          type="number"
+                          value={taxPercentage || ''}
+                          onChange={e => {
+                            setTaxPercentage(parseFloat(e.target.value) || 0);
+                            setIsTaxManuallyEdited(false);
+                          }}
+                          placeholder="10"
+                          className="bg-white text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase">Tax Amount (RM)</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={taxAmount || ''}
+                          onChange={e => {
+                            setTaxAmount(parseFloat(e.target.value) || 0);
+                            setIsTaxManuallyEdited(true);
+                          }}
+                          placeholder="0.00"
+                          className="bg-white text-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Totals */}
               <div className="border-t pt-4">
                 <div className="flex justify-end">
@@ -951,6 +1057,12 @@ export default function NewDocumentSimplePage() {
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Delivery Fee</span>
                         <span className="font-medium">RM {deliveryFee.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    {isTaxEnabled && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">{taxTitle}</span>
+                        <span className="font-medium">RM {Number(taxAmount).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                     )}
                     <div className="flex justify-between items-center border-t pt-2">

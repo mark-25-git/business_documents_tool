@@ -40,6 +40,8 @@ type DocumentPDFProps = {
   currency?: string;
   imageUrl?: string;
   isDeliveryOrder?: boolean;
+  taxTitle?: string;
+  taxAmount?: number;
 };
 
 const formatCurrency = (value: number) =>
@@ -252,6 +254,8 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
   currency = "MYR",
   imageUrl,
   isDeliveryOrder: isDeliveryOrderProp,
+  taxTitle,
+  taxAmount,
 }) => {
   const isDeliveryOrder = isDeliveryOrderProp ?? (
     docType.trim().toLowerCase() === "delivery order" ||
@@ -266,7 +270,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
       ),
     0
   );
-  const total = subtotal;
+  const total = subtotal + (taxAmount || 0);
 
   return (
     <Document>
@@ -426,6 +430,12 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
         {/* Totals (hidden for Delivery Order) */}
         {!isDeliveryOrder && (
           <View style={styles.totalsSection}>
+            {(taxAmount !== undefined && taxAmount !== 0) && (
+              <View style={[styles.totalRow, { marginBottom: 4 }]}>
+                <Text style={styles.totalLabel}>{taxTitle || 'Tax'}</Text>
+                <Text style={styles.totalLabel}>{formatCurrency(taxAmount)}</Text>
+              </View>
+            )}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabelStrong}>Total</Text>
               <Text style={styles.grandTotal}>{formatCurrency(total)}</Text>
