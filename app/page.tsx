@@ -833,3 +833,18 @@ function InvoiceEditor() {
     </div>
   );
 }
+
+export default function Home() {
+  return (
+    <React.Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <p className="text-sm font-medium text-gray-500">Loading invoice editor...</p>
+        </div>
+      </div>
+    }>
+      <InvoiceEditor />
+    </React.Suspense>
+  );
+}
