@@ -21,7 +21,7 @@ const PDFViewer = dynamic(
   { ssr: false }
 );
 
-export default function Home() {
+function InvoiceEditor() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlDocId = searchParams.get('doc');
