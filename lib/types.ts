@@ -58,7 +58,6 @@ export type CreateDocumentPayload = {
   shippingAddress: string;
   shippingPhone: string;
   items: LineItem[];
+  docNumber?: string;
+  syncToMaster?: boolean;
 };
-
-
-

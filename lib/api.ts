@@ -110,6 +110,25 @@ export async function getDocument(id: string): Promise<InvoiceDocument | null> {
 }
 
 /**
+ * Get the next sequential document number
+ */
+export async function getNextDocNumber(): Promise<string | null> {
+  const GAS_API_URL = getGASApiUrl();
+  if (!GAS_API_URL) return null;
+
+  try {
+    const res = await fetch(`${GAS_API_URL}?action=getNextDocNumber`, {
+      cache: 'no-store'
+    });
+    const json = await res.json();
+    return json.success ? json.docNumber : null;
+  } catch (error) {
+    console.error("Failed to fetch next document number:", error);
+    return null;
+  }
+}
+
+/**
  * Create a new document
  */
 export async function createDocument(data: CreateDocumentPayload) {
@@ -125,6 +144,26 @@ export async function createDocument(data: CreateDocumentPayload) {
     return json;
   } catch (error) {
     console.error("Failed to create document:", error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+/**
+ * Update an existing document
+ */
+export async function updateDocument(id: string, data: CreateDocumentPayload) {
+  const GAS_API_URL = getGASApiUrl();
+  if (!GAS_API_URL) throw new Error("API URL not configured");
+
+  try {
+    const res = await fetch(`${GAS_API_URL}?action=updateDocument`, {
+      method: 'POST',
+      body: JSON.stringify({ id, ...data }),
+    });
+    const json = await res.json();
+    return json;
+  } catch (error) {
+    console.error("Failed to update document:", error);
     return { success: false, error: 'Network error' };
   }
 }

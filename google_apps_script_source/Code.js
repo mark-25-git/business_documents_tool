@@ -80,6 +80,8 @@ function doGet(e) {
     return getDocument(e.parameter.id);
   } else if (action === 'getItemSuggestions') {
     return getItemSuggestions();
+  } else if (action === 'getNextDocNumber') {
+    return getNextDocNumber();
   }
 
   return response({ error: 'Invalid action' });
@@ -94,8 +96,8 @@ function doPost(e) {
       return createCustomer(data);
     } else if (action === 'updateCustomer') {
       return updateCustomer(data);
-    } else if (action === 'createDocument') {
-      return createDocument(data);
+    } else if (action === 'updateDocument') {
+      return updateDocument(data);
     } else if (action === 'deleteDocument') {
       return deleteDocument(data.id);
     }
@@ -262,8 +264,22 @@ function createDocument(data) {
   const docSheet = ss.getSheetByName(SHEETS.DOCUMENTS);
   const itemSheet = ss.getSheetByName(SHEETS.LINE_ITEMS);
 
-  // Generate Doc Number
-  const docNumber = generateDocNumber(data.type);
+  // Generate or use provided Doc Number
+  let docNumber;
+  if (data.docNumber) {
+    // Check for duplicates
+    const allDocs = getDocuments().data;
+    if (allDocs.some(d => d.docNumber === data.docNumber)) {
+      return response({ success: false, error: 'Document number already exists: ' + data.docNumber });
+    }
+    docNumber = data.docNumber;
+    
+    // Optional: Synchronize counter if manual number is the next in sequence
+    // (Skipped for now to avoid complex logic, usually manual numbers are overrides)
+  } else {
+    docNumber = generateDocNumber(data.type);
+  }
+  
   const docId = 'DOC-' + new Date().getTime();
 
   // Save Header using mapping for robustness
@@ -313,7 +329,110 @@ function createDocument(data) {
     itemSheet.getRange(itemSheet.getLastRow() + 1, 1, items.length, items[0].length).setValues(items);
   }
 
+  // Master Record Sync
+  if (data.syncToMaster && data.customerId && !data.customerId.startsWith('TEMP-')) {
+    updateCustomer({
+      id: data.customerId,
+      name: data.customerName,
+      billingAddress: data.billingAddress,
+      billingPhone: data.billingPhone,
+      billingEmail: data.billingEmail,
+      shippingName: data.shippingName,
+      shippingAddress: data.shippingAddress,
+      shippingPhone: data.shippingPhone
+    });
+  }
+
   return response({ success: true, docId: docId, docNumber: docNumber });
+}
+
+function updateDocument(data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const docSheet = ss.getSheetByName(SHEETS.DOCUMENTS);
+  const itemSheet = ss.getSheetByName(SHEETS.LINE_ITEMS);
+
+  const docId = data.id;
+  if (!docId) return response({ success: false, error: 'Document ID is required for updating' });
+
+  // 1. Find and Update Document Header
+  const docRows = docSheet.getDataRange().getValues();
+  const headers = docRows.shift().map(h => h.toString().trim().toLowerCase());
+  const idx = name => headers.indexOf(name.toLowerCase());
+  
+  let rowIndex = -1;
+  const docIdColIdx = idx('docid');
+  
+  for (let i = 0; i < docRows.length; i++) {
+    if (docRows[i][docIdColIdx] === docId) {
+      rowIndex = i + 2; // +1 for shift, +1 for 1-indexing
+      break;
+    }
+  }
+
+  if (rowIndex === -1) return response({ success: false, error: 'Document not found' });
+
+  const mapping = {
+    'docnumber': data.docNumber,
+    'type': data.type,
+    'date': data.date,
+    'customerid': data.customerId,
+    'customername': data.customerName,
+    'totalamount': data.totalAmount,
+    'status': data.status,
+    'notes': data.notes,
+    'billingaddress': data.billingAddress,
+    'billingphone': data.billingPhone,
+    'billingemail': data.billingEmail,
+    'shippingname': data.shippingName,
+    'shippingaddress': data.shippingAddress,
+    'shippingphone': data.shippingPhone
+  };
+
+  Object.keys(mapping).forEach(key => {
+    const colIdx = idx(key);
+    if (colIdx !== -1 && mapping[key] !== undefined) {
+      docSheet.getRange(rowIndex, colIdx + 1).setValue(mapping[key]);
+    }
+  });
+
+  // 2. Sync Line Items (Delete existing and add new)
+  const itemData = itemSheet.getDataRange().getValues();
+  const itemsToDelete = [];
+  for (let i = itemData.length - 1; i >= 1; i--) {
+    if (itemData[i][1] === docId) {
+      itemsToDelete.push(i + 1);
+    }
+  }
+  itemsToDelete.forEach(idx => itemSheet.deleteRow(idx));
+
+  const newItems = data.items.map(item => [
+    'ITEM-' + Math.random().toString(36).substr(2, 9),
+    docId,
+    item.description,
+    item.quantity,
+    item.unitPrice,
+    item.amount
+  ]);
+
+  if (newItems.length > 0) {
+    itemSheet.getRange(itemSheet.getLastRow() + 1, 1, newItems.length, newItems[0].length).setValues(newItems);
+  }
+
+  // Master Record Sync
+  if (data.syncToMaster && data.customerId) {
+    updateCustomer({
+      id: data.customerId,
+      name: data.customerName,
+      billingAddress: data.billingAddress,
+      billingPhone: data.billingPhone,
+      billingEmail: data.billingEmail,
+      shippingName: data.shippingName,
+      shippingAddress: data.shippingAddress,
+      shippingPhone: data.shippingPhone
+    });
+  }
+
+  return response({ success: true, docId: docId, docNumber: data.docNumber });
 }
 
 function getDocuments() {
@@ -538,6 +657,24 @@ function getItemSuggestions() {
 }
 
 function generateDocNumber(type) {
+  const result = getNextDocNumberInternal();
+  
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const configSheet = ss.getSheetByName(SHEETS.CONFIG);
+  
+  // Update state
+  configSheet.getRange(2, 2).setValue(result.monthKey);
+  configSheet.getRange(3, 2).setValue(result.counter);
+  
+  return result.docNumber;
+}
+
+function getNextDocNumber() {
+  const result = getNextDocNumberInternal();
+  return response({ success: true, docNumber: result.docNumber });
+}
+
+function getNextDocNumberInternal() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName(SHEETS.CONFIG);
   const data = configSheet.getDataRange().getValues();
@@ -546,22 +683,23 @@ function generateDocNumber(type) {
   const now = new Date();
   const year = now.getFullYear().toString().substr(-2);
   const month = (now.getMonth() + 1).toString().padStart(2, '0');
-  const currentMonthKey = year + month;
+  const monthKey = year + month;
 
   let lastDocMonth = data[1][1];
   let docCounter = parseInt(data[2][1]);
 
-  if (lastDocMonth != currentMonthKey) {
+  if (lastDocMonth != monthKey) {
     docCounter = 1;
-    configSheet.getRange(2, 2).setValue(currentMonthKey);
   } else {
     docCounter++;
   }
 
-  configSheet.getRange(3, 2).setValue(docCounter);
-
   const paddedCount = docCounter.toString().padStart(3, '0');
-  return `${year}${month}-${paddedCount}`;
+  return {
+    docNumber: `${monthKey}-${paddedCount}`,
+    counter: docCounter,
+    monthKey: monthKey
+  };
 }
 
 function response(data) {
