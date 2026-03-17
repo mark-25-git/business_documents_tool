@@ -13,6 +13,7 @@ import { Download, Plus, X, Search } from "lucide-react";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 import { DocumentPDF } from "@/components/DocumentPDF";
 import { pdf } from '@react-pdf/renderer';
+import { Badge } from "@/components/ui/badge";
 
 // Dynamically import PDFViewer for client-side preview
 const PDFViewer = dynamic(
@@ -617,46 +618,71 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 p-6 pb-24">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between no-print">
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-bold text-gray-900 leading-tight">{pageTitle}</h1>
-            {originalDocId && (
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Edit Mode</span>
-                <button onClick={handleStartNew} className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline">Start New Document instead</button>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={handleDownload} disabled={isSaving || isDocNumberDuplicate}><Download className="h-4 w-4 mr-2" />Download PDF</Button>
-            <Button onClick={handleSave} disabled={isSaving || isDocNumberDuplicate || (originalDocId ? !isDirty : false)}>{isSaving ? "Saving..." : originalDocId ? "Update Changes" : "Save Document"}</Button>
-          </div>
+        {/* Simple Header */}
+        <div className="no-print">
+          <h1 className="text-2xl font-bold text-gray-900 leading-tight">{pageTitle}</h1>
         </div>
 
-        <div className="max-w-4xl mx-auto no-print">
-          <Card className="border-none shadow-sm overflow-visible">
-            <CardContent className="p-4 relative">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
-                <Input placeholder="Search existing documents to retrieve data..." className="pl-10" value={docSearch} onChange={(e) => { setDocSearch(e.target.value); setShowDocSearch(true); }} onFocus={() => setShowDocSearch(true)} />
-                <Dropdown isOpen={showDocSearch} onClose={() => setShowDocSearch(false)}>
-                  {isLoading ? <div className="px-4 py-3 text-sm text-gray-500">Loading documents...</div> : filteredDocs.length === 0 ? <div className="px-4 py-3 text-sm text-gray-500">No documents found</div> : filteredDocs.map(d => (
-                    <DropdownItem key={d.id} onClick={() => handleSelectDocument(d.id)}>
-                      <div className="flex justify-between items-center w-full">
-                        <div>
-                          <div className="font-medium text-gray-900">{d.docNumber}</div>
-                          <div className="text-xs text-gray-500">{d.customerName} • {new Date(d.date).toLocaleDateString('en-GB')}</div>
-                        </div>
-                        <div className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-600">RM {d.totalAmount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      </div>
-                    </DropdownItem>
-                  ))}
-                </Dropdown>
+        {/* Toolbar Card */}
+        <Card className="border-none shadow-sm overflow-visible no-print">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              {/* Left Section: Search & Start New (Half Width) */}
+              <div className="flex items-center gap-3 w-full md:w-1/2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                  <Input 
+                    placeholder="Search documents..." 
+                    className="pl-10 h-10 bg-white border-gray-200 focus:bg-white transition-all w-full" 
+                    value={docSearch} 
+                    onChange={(e) => { setDocSearch(e.target.value); setShowDocSearch(true); }} 
+                    onFocus={() => setShowDocSearch(true)} 
+                  />
+                  <Dropdown isOpen={showDocSearch} onClose={() => setShowDocSearch(false)}>
+                    {isLoading ? (
+                      <div className="px-4 py-3 text-sm text-gray-500">Loading documents...</div>
+                    ) : filteredDocs.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-gray-500">No documents found</div>
+                    ) : (
+                      filteredDocs.map(d => (
+                        <DropdownItem key={d.id} onClick={() => handleSelectDocument(d.id)}>
+                          <div className="flex justify-between items-center w-full group">
+                            <div>
+                              <div className="font-medium text-gray-900 group-hover:text-primary transition-colors">{d.docNumber}</div>
+                              <div className="text-[10px] text-gray-500">{d.customerName} • {new Date(d.date).toLocaleDateString('en-GB')}</div>
+                            </div>
+                            <div className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-600">
+                              RM {d.totalAmount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                          </div>
+                        </DropdownItem>
+                      ))
+                    )}
+                  </Dropdown>
+                  {isFetchingDoc && (
+                    <div className="absolute right-3 top-3">
+                      <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                    </div>
+                  )}
+                </div>
+                <Button variant="outline" onClick={handleStartNew} className="h-10 px-4">
+                  <Plus className="h-4 w-4 mr-2" />Start new
+                </Button>
               </div>
-              {isFetchingDoc && <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-20 rounded-lg"><div className="flex items-center gap-2 text-sm text-primary font-medium"><div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />Retrieving document...</div></div>}
-            </CardContent>
-          </Card>
-        </div>
+
+              {/* Right Section: Action Buttons */}
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <Button variant="outline" onClick={handleDownload} disabled={isSaving || isDocNumberDuplicate} className="flex-1 md:flex-none h-10 px-4">
+                  <Download className="h-4 w-4 mr-2" />Download PDF
+                </Button>
+                <Button onClick={handleSave} disabled={isSaving || isDocNumberDuplicate || (originalDocId ? !isDirty : false)} className="flex-1 md:flex-none h-10 px-4 shadow-sm">
+                  {isSaving ? "Saving..." : originalDocId ? "Update changes" : "Save document"}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="border-none shadow-lg no-print">
@@ -685,8 +711,8 @@ export default function Home() {
                   <div className="p-4 bg-gray-50 rounded-md border border-gray-200 space-y-4">
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1 space-y-2">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase">Billing Name</label>
-                        <Input placeholder="Customer Billing Name" value={billingName} onChange={e => setBillingName(e.target.value)} className="text-lg font-bold bg-white h-11" />
+                        <label className="text-[10px] font-bold text-gray-400">Billing name</label>
+                        <Input placeholder="Customer billing name" value={billingName} onChange={e => setBillingName(e.target.value)} className="text-lg font-bold bg-white h-11" />
                       </div>
                       <button onClick={() => { setSelectedCustomer(null); setShowCustomerSearch(false); setCustomerSearch(""); setIsDifferentShipping(false); }} className="text-gray-400 hover:text-red-500"><X className="h-4 w-4" /></button>
                     </div>
@@ -709,10 +735,10 @@ export default function Home() {
                     )}
                     {isDifferentShipping && (
                       <div className="space-y-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100 animate-in fade-in slide-in-from-top-1">
-                        <h4 className="text-[10px] font-bold text-blue-500 uppercase">Shipping Details</h4>
-                        <Input placeholder="Shipping Name" value={shippingName} onChange={e => setShippingName(e.target.value)} className="bg-white text-sm" />
-                        <Input placeholder="Shipping Address" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} className="bg-white text-sm" />
-                        <Input placeholder="Shipping Phone" value={shippingPhone} onChange={e => setShippingPhone(e.target.value)} className="bg-white text-sm" />
+                        <h4 className="text-[10px] font-bold text-blue-500">Shipping details</h4>
+                        <Input placeholder="Shipping name" value={shippingName} onChange={e => setShippingName(e.target.value)} className="bg-white text-sm" />
+                        <Input placeholder="Shipping address" value={shippingAddress} onChange={e => setShippingAddress(e.target.value)} className="bg-white text-sm" />
+                        <Input placeholder="Shipping phone" value={shippingPhone} onChange={e => setShippingPhone(e.target.value)} className="bg-white text-sm" />
                       </div>
                     )}
                   </div>
@@ -729,7 +755,7 @@ export default function Home() {
                             )}
                           </Dropdown>
                         </div>
-                        <Button variant="outline" onClick={() => setIsAddingCustomer(true)} className="w-full"><Plus className="h-4 w-4 mr-2" />Add New Customer</Button>
+                        <Button variant="outline" onClick={() => setIsAddingCustomer(true)} className="w-full"><Plus className="h-4 w-4 mr-2" />Add new customer</Button>
                       </>
                     ) : (
                       <div className="p-4 border rounded-md bg-gray-50 space-y-3">
@@ -773,11 +799,11 @@ export default function Home() {
                 <label className="text-sm font-semibold text-gray-500 block mb-2">Tax</label>
                 <div className="space-y-4">
                   <label className="flex items-center gap-2 cursor-pointer group w-fit"><input type="checkbox" checked={isTaxEnabled} onChange={e => { setIsTaxEnabled(e.target.checked); if (!e.target.checked) setIsTaxManuallyEdited(false); }} className="w-4 h-4 rounded border-gray-300 focus:outline-none cursor-pointer" style={{ accentColor: 'hsl(var(--primary))' }} /><span className="text-sm text-gray-700 group-hover:text-gray-900">Charge Tax</span></label>
-                  {isTaxEnabled && (
+                   {isTaxEnabled && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100 animate-in fade-in slide-in-from-top-1">
-                      <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase">Tax Title</label><Input value={taxTitle} onChange={e => setTaxTitle(e.target.value)} placeholder="e.g. SST 10%" className="bg-white text-sm" /></div>
-                      <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase">Tax Percentage (%)</label><Input type="number" value={taxPercentage || ''} onChange={e => { setTaxPercentage(parseFloat(e.target.value) || 0); setIsTaxManuallyEdited(false); }} placeholder="10" className="bg-white text-sm" /></div>
-                      <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400 uppercase">Tax Amount (RM)</label><Input type="number" step="0.01" value={taxAmount || ''} onChange={e => { setTaxAmount(parseFloat(e.target.value) || 0); setIsTaxManuallyEdited(true); }} placeholder="0.00" className="bg-white text-sm" /></div>
+                      <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400">Tax title</label><Input value={taxTitle} onChange={e => setTaxTitle(e.target.value)} placeholder="e.g. SST 10%" className="bg-white text-sm" /></div>
+                      <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400">Tax percentage (%)</label><Input type="number" value={taxPercentage || ''} onChange={e => { setTaxPercentage(parseFloat(e.target.value) || 0); setIsTaxManuallyEdited(false); }} placeholder="10" className="bg-white text-sm" /></div>
+                      <div className="space-y-1.5"><label className="text-[10px] font-bold text-gray-400">Tax amount (RM)</label><Input type="number" step="0.01" value={taxAmount || ''} onChange={e => { setTaxAmount(parseFloat(e.target.value) || 0); setIsTaxManuallyEdited(true); }} placeholder="0.00" className="bg-white text-sm" /></div>
                     </div>
                   )}
                 </div>
