@@ -96,6 +96,8 @@ function doPost(e) {
       return createCustomer(data);
     } else if (action === 'updateCustomer') {
       return updateCustomer(data);
+    } else if (action === 'createDocument') {
+      return createDocument(data);
     } else if (action === 'updateDocument') {
       return updateDocument(data);
     } else if (action === 'deleteDocument') {
@@ -267,15 +269,39 @@ function createDocument(data) {
   // Generate or use provided Doc Number
   let docNumber;
   if (data.docNumber) {
-    // Check for duplicates
-    const allDocs = getDocuments().data;
-    if (allDocs.some(d => d.docNumber === data.docNumber)) {
+    // Check for duplicates directly from sheet since getDocuments returns TextOutput
+    const docRows = docSheet.getDataRange().getValues();
+    const headersTmp = docRows.shift().map(h => h.toString().trim().toLowerCase());
+    const docNumIdx = headersTmp.indexOf('docnumber');
+    if (docNumIdx !== -1 && docRows.some(r => r[docNumIdx] === data.docNumber)) {
       return response({ success: false, error: 'Document number already exists: ' + data.docNumber });
     }
     docNumber = data.docNumber;
     
-    // Optional: Synchronize counter if manual number is the next in sequence
-    // (Skipped for now to avoid complex logic, usually manual numbers are overrides)
+    // Synchronize counter if manual number matches the YYMM-XXX format
+    const match = docNumber.match(/^(\d{4})-(\d{3,})$/);
+    if (match) {
+      const now = new Date();
+      const year = now.getFullYear().toString().substr(-2);
+      const m = (now.getMonth() + 1).toString().padStart(2, '0');
+      const currentMonthKey = year + m;
+      
+      const overrideMonth = match[1];
+      const overrideCounter = parseInt(match[2], 10);
+      
+      if (overrideMonth === currentMonthKey) {
+        const configSheet = ss.getSheetByName(SHEETS.CONFIG);
+        const lastDocMonth = configSheet.getRange(2, 2).getValue();
+        const docCounter = parseInt(configSheet.getRange(3, 2).getValue(), 10) || 0;
+        
+        if (lastDocMonth != overrideMonth) {
+          configSheet.getRange(2, 2).setValue(overrideMonth);
+          configSheet.getRange(3, 2).setValue(overrideCounter);
+        } else if (overrideCounter > docCounter) {
+          configSheet.getRange(3, 2).setValue(overrideCounter);
+        }
+      }
+    }
   } else {
     docNumber = generateDocNumber(data.type);
   }
