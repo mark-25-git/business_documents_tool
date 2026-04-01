@@ -309,12 +309,12 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
                     return (
                       <>
                         <Text style={styles.value}>{resolvedName}</Text>
-                        {resolvedPhone && (
+                        {resolvedPhone ? (
                           <Text style={styles.value}>{resolvedPhone}</Text>
-                        )}
-                        {resolvedAddress && (
+                        ) : null}
+                        {resolvedAddress ? (
                           <Text style={styles.value}>{resolvedAddress}</Text>
-                        )}
+                        ) : null}
                       </>
                     );
                   })()}
@@ -468,7 +468,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
             >
               <View>
                 <Text style={styles.chopTitle}>Issued by</Text>
-                {imageUrl && (
+                {imageUrl ? (
                   <View
                     style={{
                       width: 80,
@@ -479,7 +479,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
                   >
                     <Image src={imageUrl} style={styles.chopImage} />
                   </View>
-                )}
+                ) : null}
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.chopTitle}>Received by</Text>
@@ -496,7 +496,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
           ) : (
             <View style={styles.chopSection}>
               <Text style={styles.chopTitle}>Issued by</Text>
-              {imageUrl && (
+              {imageUrl ? (
                 <View
                   style={{
                     width: 80,
@@ -507,7 +507,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
                 >
                   <Image src={imageUrl} style={styles.chopImage} />
                 </View>
-              )}
+              ) : null}
             </View>
           )}
         </View>
