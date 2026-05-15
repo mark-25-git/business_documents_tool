@@ -151,21 +151,21 @@ const styles = StyleSheet.create({
     minHeight: 20,
   },
   colDescription: {
-    width: '50%', // 6/12 columns
+    width: '45%', 
     paddingRight: 8,
   },
   colQty: {
-    width: '16.67%', // 2/12 columns
+    width: '10%', 
     textAlign: 'right',
     paddingRight: 8,
   },
   colUnitPrice: {
-    width: '16.67%', // 2/12 columns
+    width: '20%', 
     textAlign: 'right',
     paddingRight: 8,
   },
   colTotal: {
-    width: '16.67%', // 2/12 columns
+    width: '25%', 
     textAlign: 'right',
   },
   headerText: {
@@ -364,7 +364,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
               {isDeliveryOrder && (
                 <View
                   style={{
-                    width: '16.67%',
+                    width: '10%',
                     marginLeft: 'auto',
                     textAlign: 'right',
                     paddingRight: 0,
@@ -412,7 +412,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
                   {isDeliveryOrder && (
                     <View
                       style={{
-                        width: '16.67%',
+                        width: '10%',
                         marginLeft: 'auto',
                         textAlign: 'right',
                         paddingRight: 0,
