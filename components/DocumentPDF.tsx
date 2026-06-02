@@ -26,6 +26,7 @@ type PDFCustomer = {
   name: string;
   phone?: string;
   address?: string;
+  email?: string;
   shippingName?: string;
   shippingAddress?: string;
   shippingPhone?: string;
@@ -42,6 +43,7 @@ type DocumentPDFProps = {
   isDeliveryOrder?: boolean;
   taxTitle?: string;
   taxAmount?: number;
+  showEmail?: boolean;
 };
 
 const formatCurrency = (value: number) =>
@@ -256,6 +258,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
   isDeliveryOrder: isDeliveryOrderProp,
   taxTitle,
   taxAmount,
+  showEmail,
 }) => {
   const isDeliveryOrder = isDeliveryOrderProp ?? (
     docType.trim().toLowerCase() === "delivery order" ||
@@ -311,6 +314,9 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
                         <Text style={styles.value}>{resolvedName}</Text>
                         {resolvedPhone ? (
                           <Text style={styles.value}>{resolvedPhone}</Text>
+                        ) : null}
+                        {showEmail && customer.email ? (
+                          <Text style={styles.value}>{customer.email}</Text>
                         ) : null}
                         {resolvedAddress ? (
                           <Text style={styles.value}>{resolvedAddress}</Text>

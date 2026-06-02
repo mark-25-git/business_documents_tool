@@ -75,6 +75,7 @@ function InvoiceEditor() {
   const [billingAddress, setBillingAddress] = React.useState("");
   const [billingPhone, setBillingPhone] = React.useState("");
   const [billingEmail, setBillingEmail] = React.useState("");
+  const [showEmailOnDoc, setShowEmailOnDoc] = React.useState(true);
 
   const [isDifferentShipping, setIsDifferentShipping] = React.useState(false);
   const [shippingName, setShippingName] = React.useState("");
@@ -106,6 +107,7 @@ function InvoiceEditor() {
       setBillingAddress(bAddr);
       setBillingPhone(bPhone);
       setBillingEmail(bEmail);
+      setShowEmailOnDoc(!!bEmail);
 
       // 2. Set Shipping Defaults
       const sName = selectedCustomer.shippingName || selectedCustomer.name || "";
@@ -230,6 +232,7 @@ function InvoiceEditor() {
         setBillingAddress(fullDoc.billingAddress || "");
         setBillingPhone(fullDoc.billingPhone || "");
         setBillingEmail(fullDoc.billingEmail || "");
+        setShowEmailOnDoc(!!fullDoc.billingEmail);
 
         setShippingName(fullDoc.shippingName || "");
         setShippingAddress(fullDoc.shippingAddress || "");
@@ -359,6 +362,7 @@ function InvoiceEditor() {
         name: billingName || selectedCustomer.name,
         phone: billingPhone || selectedCustomer.phone || "",
         address: billingAddress || selectedCustomer.address || "",
+        email: billingEmail || selectedCustomer.email || "",
         shippingName: isDifferentShipping ? shippingName : selectedCustomer.name,
         shippingAddress: isDifferentShipping ? shippingAddress : (billingAddress || selectedCustomer.address || ""),
         shippingPhone: isDifferentShipping ? shippingPhone : (billingPhone || selectedCustomer.phone || ""),
@@ -369,8 +373,9 @@ function InvoiceEditor() {
       isDeliveryOrder={type === 'DELIVERY_ORDER' || isDocTypeDO(type)}
       taxTitle={isTaxEnabled ? taxTitle : undefined}
       taxAmount={isTaxEnabled ? taxAmount : undefined}
+      showEmail={showEmailOnDoc}
     />
-  ), [type, docNumber, docNumberPreview, date, selectedCustomer, billingName, billingPhone, billingAddress, isDifferentShipping, shippingName, shippingAddress, shippingPhone, previewItems, imageUrl, isTaxEnabled, taxTitle, taxAmount]);
+  ), [type, docNumber, docNumberPreview, date, selectedCustomer, billingName, billingPhone, billingAddress, billingEmail, isDifferentShipping, shippingName, shippingAddress, shippingPhone, previewItems, imageUrl, isTaxEnabled, taxTitle, taxAmount, showEmailOnDoc]);
 
   const subtotal = baseItems.reduce((sum, item) => sum + Number(item.amount ?? Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0);
 
@@ -401,6 +406,7 @@ function InvoiceEditor() {
       shippingPhone: newCustomer.phone
     };
     setSelectedCustomer(temp);
+    setShowEmailOnDoc(!!temp.billingEmail);
     setIsTempCustomer(true);
     setIsAddingCustomer(false);
     setNewCustomer({ name: "", phone: "", address: "", email: "" });
@@ -533,6 +539,7 @@ function InvoiceEditor() {
     setBillingAddress("");
     setBillingPhone("");
     setBillingEmail("");
+    setShowEmailOnDoc(true);
     setIsDifferentShipping(false);
     setShippingName("");
     setShippingAddress("");
@@ -720,12 +727,18 @@ function InvoiceEditor() {
                       <Input placeholder="Billing Address" value={billingAddress} onChange={e => setBillingAddress(e.target.value)} className="text-sm bg-white" />
                       <div className="grid grid-cols-2 gap-2">
                         <Input placeholder="Phone" value={billingPhone} onChange={e => setBillingPhone(e.target.value)} className="text-sm bg-white" />
-                        <Input placeholder="Email" value={billingEmail} onChange={e => setBillingEmail(e.target.value)} className="text-sm bg-white" />
+                        <Input placeholder="Email" value={billingEmail} onChange={e => { setBillingEmail(e.target.value); if (!billingEmail && e.target.value) setShowEmailOnDoc(true); }} className="text-sm bg-white" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 pt-2 border-t border-dashed">
-                      <input type="checkbox" id="diff-shipping-simple" checked={isDifferentShipping} onChange={e => setIsDifferentShipping(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                      <label htmlFor="diff-shipping-simple" className="text-xs font-medium text-gray-700 cursor-pointer">Different Shipping Address</label>
+                    <div className="flex flex-col gap-2 pt-2 border-t border-dashed">
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" id="diff-shipping-simple" checked={isDifferentShipping} onChange={e => setIsDifferentShipping(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                        <label htmlFor="diff-shipping-simple" className="text-xs font-medium text-gray-700 cursor-pointer">Different Shipping Address</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" id="show-email-on-doc" checked={showEmailOnDoc} onChange={e => setShowEmailOnDoc(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                        <label htmlFor="show-email-on-doc" className="text-xs font-medium text-gray-700 cursor-pointer">Show Email on Document</label>
+                      </div>
                     </div>
                     {!isTempCustomer && (
                       <div className="flex items-center gap-2 pt-1">
