@@ -21,6 +21,14 @@ const PDFViewer = dynamic(
   { ssr: false }
 );
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 function InvoiceEditor() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -44,7 +52,7 @@ function InvoiceEditor() {
 
   // Form State
   const [type, setType] = React.useState<DocumentType>("INVOICE");
-  const [date, setDate] = React.useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = React.useState(getLocalDateString());
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [isTempCustomer, setIsTempCustomer] = React.useState(false);
   const [showCustomerSearch, setShowCustomerSearch] = React.useState(false);
@@ -527,7 +535,7 @@ function InvoiceEditor() {
     setEditableDocNumber("");
     setIsDocNumberDuplicate(false);
     setType("INVOICE");
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(getLocalDateString());
     setSelectedCustomer(null);
     setItems([{ description: "", quantity: 1, unitPrice: 0, amount: 0 }]);
     setDeliveryFee(0);
