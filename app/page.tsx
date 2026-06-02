@@ -501,12 +501,11 @@ function InvoiceEditor() {
       setDocNumber(res.docNumber || "");
       setSyncToMaster(false);
       setInitialDocData({ ...payload, items: items.filter(i => i.description.trim() !== "").map(i => ({ ...i })), isTaxEnabled, taxTitle, taxAmount, deliveryFee, isFreeDelivery });
-      if (!originalDocId && res.id) {
-        setOriginalDocId(res.id);
-        router.push(`/?doc=${res.id}`);
-      }
-      getDocuments().then(setAllDocs);
+      const docId = originalDocId || res.id;
       alert(originalDocId ? "Changes updated successfully." : "Document saved successfully.");
+      if (docId) {
+        window.location.href = `/?doc=${docId}`;
+      }
     } else {
       alert("Error saving: " + res.error);
     }
