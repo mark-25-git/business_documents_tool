@@ -31,7 +31,7 @@ export function CustomerSelector({ customers, onSelect, selectedId }: CustomerSe
     // Here we just call API
     const res = await createCustomer(newCustomer);
     if (res.success) {
-      const added = { ...newCustomer, id: res.id, createdAt: new Date().toISOString() };
+      const added = { ...newCustomer, id: res.id!, createdAt: new Date().toISOString() } as Customer;
       onSelect(added);
       setIsAdding(false);
       // Note: Parent should refresh list in real app

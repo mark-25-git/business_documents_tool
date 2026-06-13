@@ -4,7 +4,7 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Customer, LineItem, DocumentType, InvoiceDocument, CreateDocumentPayload } from "@/lib/types";
-import { getCustomers, createCustomer, createDocument, getItemSuggestions, ItemSuggestion, getDocuments, getDocument, getNextDocNumber, updateDocument } from "@/lib/api";
+import { getCustomers, createCustomer, createDocument, getItemSuggestions, ItemSuggestion, getDocuments, getDocument, getNextDocNumber, updateDocument, deleteDocument } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -343,6 +343,7 @@ function InvoiceEditor() {
     QUOTATION: "Quotation",
     RECEIPT: "Receipt",
     DELIVERY_ORDER: "Delivery Order",
+    PROFORMA_INVOICE: "Proforma Invoice",
   };
 
   const baseItems = React.useMemo(() => items.filter(i => i.description.trim() !== ""), [items]);
@@ -422,6 +423,7 @@ function InvoiceEditor() {
   };
 
   const getDocumentPrefix = (docType: DocumentType): string => {
+    if (docType === 'PROFORMA_INVOICE') return 'PI';
     if (isDocTypeDO(docType)) return 'DO';
     return docType.charAt(0);
   };
@@ -490,7 +492,7 @@ function InvoiceEditor() {
         alert("Error saving customer: " + (resCust.error || "Unknown error"));
         return;
       }
-      const added = { ...selectedCustomer, id: resCust.id };
+      const added = { ...selectedCustomer, id: resCust.id! } as Customer;
       setSelectedCustomer(added);
       setCustomers(prev => [...prev, added]);
       setIsTempCustomer(false);
@@ -509,7 +511,7 @@ function InvoiceEditor() {
       setDocNumber(res.docNumber || "");
       setSyncToMaster(false);
       setInitialDocData({ ...payload, items: items.filter(i => i.description.trim() !== "").map(i => ({ ...i })), isTaxEnabled, taxTitle, taxAmount, deliveryFee, isFreeDelivery });
-      const docId = originalDocId || res.id;
+      const docId = originalDocId || (res as any).docId;
       alert(originalDocId ? "Changes updated successfully." : "Document saved successfully.");
       if (docId) {
         window.location.href = `/?doc=${docId}`;
@@ -525,6 +527,28 @@ function InvoiceEditor() {
     try { await downloadPDF(docNumber || editableDocNumber); }
     catch (error) { alert("Failed to download PDF."); }
     finally { setIsSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!originalDocId) return;
+    if (!confirm("Are you sure you want to delete this document?")) return;
+    
+    setIsSaving(true);
+    try {
+      const res = await deleteDocument(originalDocId);
+      if (res.success) {
+        alert("Document deleted successfully.");
+        const updatedDocs = await getDocuments();
+        setAllDocs(updatedDocs);
+        handleStartNew();
+      } else {
+        alert("Error deleting document: " + res.error);
+      }
+    } catch (error) {
+      alert("Failed to delete document.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleStartNew = async () => {
@@ -686,6 +710,11 @@ function InvoiceEditor() {
 
               {/* Right Section: Action Buttons */}
               <div className="flex items-center gap-3 w-full md:w-auto">
+                {originalDocId && (
+                  <Button variant="outline" onClick={handleDelete} disabled={isSaving} className="flex-1 md:flex-none h-10 px-4 border-red-200 hover:border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 shadow-sm">
+                    Delete
+                  </Button>
+                )}
                 <Button variant="outline" onClick={handleDownload} disabled={isSaving || isDocNumberDuplicate} className="flex-1 md:flex-none h-10 px-4">
                   <Download className="h-4 w-4 mr-2" />Download PDF
                 </Button>
@@ -703,7 +732,7 @@ function InvoiceEditor() {
             <CardContent className="p-8 space-y-6">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-gray-500 block mb-2">Document type</label>
-                <div className="flex gap-2 flex-wrap">{(['INVOICE', 'QUOTATION', 'RECEIPT', 'DELIVERY_ORDER'] as DocumentType[]).map(t => (
+                <div className="flex gap-2 flex-wrap">{(['INVOICE', 'QUOTATION', 'RECEIPT', 'DELIVERY_ORDER', 'PROFORMA_INVOICE'] as DocumentType[]).map(t => (
                   <button key={t} onClick={() => setType(t)} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${type === t ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{documentTypeLabels[t]}</button>
                 ))}</div>
               </div>
@@ -748,9 +777,69 @@ function InvoiceEditor() {
                       </div>
                     </div>
                     {!isTempCustomer && (
-                      <div className="flex items-center gap-2 pt-1">
-                        <input type="checkbox" id="sync-to-master" checked={syncToMaster} onChange={e => setSyncToMaster(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                        <label htmlFor="sync-to-master" className="text-xs font-medium text-amber-600 cursor-pointer flex items-center gap-1">Update master record with these details</label>
+                      <div className="pt-1">
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" id="sync-to-master" checked={syncToMaster} onChange={e => setSyncToMaster(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                          <label htmlFor="sync-to-master" className="text-xs font-medium text-amber-600 cursor-pointer flex items-center gap-1">Update master record with these details</label>
+                        </div>
+                        {syncToMaster && (
+                          <div className="mt-2 pl-6 text-[11px] text-amber-700 bg-amber-50/60 p-2.5 rounded border border-amber-100/60 space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                            <p className="font-semibold text-amber-800">The following updates will be saved to the customer's database profile:</p>
+                            {(() => {
+                              const changes = [];
+                              if (selectedCustomer) {
+                                const origName = selectedCustomer.name || "";
+                                if (billingName && billingName.trim() !== origName.trim()) {
+                                  changes.push({ label: "Name", from: origName, to: billingName });
+                                }
+                                const origAddr = selectedCustomer.billingAddress || selectedCustomer.address || "";
+                                if (billingAddress.trim() !== origAddr.trim()) {
+                                  changes.push({ label: "Billing Address", from: origAddr || "(empty)", to: billingAddress || "(empty)" });
+                                }
+                                const origPhone = selectedCustomer.billingPhone || selectedCustomer.phone || "";
+                                if (billingPhone.trim() !== origPhone.trim()) {
+                                  changes.push({ label: "Billing Phone", from: origPhone || "(empty)", to: billingPhone || "(empty)" });
+                                }
+                                const origEmail = selectedCustomer.billingEmail || selectedCustomer.email || "";
+                                if (billingEmail.trim() !== origEmail.trim()) {
+                                  changes.push({ label: "Billing Email", from: origEmail || "(empty)", to: billingEmail || "(empty)" });
+                                }
+                                
+                                const origSName = selectedCustomer.shippingName || selectedCustomer.name || "";
+                                const targetSName = isDifferentShipping ? shippingName : billingName;
+                                if (targetSName && targetSName.trim() !== origSName.trim()) {
+                                  changes.push({ label: "Shipping Name", from: origSName, to: targetSName });
+                                }
+                                const origSAddr = selectedCustomer.shippingAddress || selectedCustomer.address || "";
+                                const targetSAddr = isDifferentShipping ? shippingAddress : billingAddress;
+                                if (targetSAddr.trim() !== origSAddr.trim()) {
+                                  changes.push({ label: "Shipping Address", from: origSAddr || "(empty)", to: targetSAddr || "(empty)" });
+                                }
+                                const origSPhone = selectedCustomer.shippingPhone || selectedCustomer.phone || "";
+                                const targetSPhone = isDifferentShipping ? shippingPhone : billingPhone;
+                                if (targetSPhone.trim() !== origSPhone.trim()) {
+                                  changes.push({ label: "Shipping Phone", from: origSPhone || "(empty)", to: targetSPhone || "(empty)" });
+                                }
+                              }
+                              if (changes.length === 0) {
+                                return <p className="text-gray-500 italic">No details have changed (database profile is already identical).</p>;
+                              }
+                              return (
+                                <ul className="space-y-1 divide-y divide-amber-100/50">
+                                  {changes.map((ch, idx) => (
+                                    <li key={idx} className="pt-1 first:pt-0 flex justify-between gap-1 items-start">
+                                      <span className="font-medium text-amber-800">{ch.label}:</span>
+                                      <span className="text-right text-amber-900 truncate max-w-[250px]">
+                                        <span className="line-through text-amber-400/80 mr-1.5">{ch.from}</span>
+                                        <span>➜ {ch.to}</span>
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
                     )}
                     {isDifferentShipping && (

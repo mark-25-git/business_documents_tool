@@ -273,6 +273,12 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
     docType.trim().toLowerCase() === "delivery order" ||
     docType.trim().toLowerCase() === "delivery order."
   );
+  const docNumberLabel = (() => {
+    const typeLower = docType.trim().toLowerCase();
+    if (typeLower === "delivery order" || typeLower === "delivery order.") return "DO No.";
+    if (typeLower === "proforma invoice" || typeLower === "proforma invoice.") return "PI No.";
+    return `${docType} No.`;
+  })();
   const subtotal = items.reduce(
     (sum, item) =>
       sum +
@@ -341,7 +347,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
 
             <View style={styles.billingRight}>
               <View style={{ marginBottom: 12, alignItems: 'flex-end' }}>
-                <Text style={styles.labelRight}>{docType} No.</Text>
+                <Text style={styles.labelRight}>{docNumberLabel}</Text>
                 <Text style={styles.valueRight}>{docNumber || "AUTO"}</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>

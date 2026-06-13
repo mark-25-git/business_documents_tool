@@ -22,7 +22,7 @@ export type LineItem = {
   amount: number;
 };
 
-export type DocumentType = 'INVOICE' | 'QUOTATION' | 'RECEIPT' | 'DELIVERY_ORDER';
+export type DocumentType = 'INVOICE' | 'QUOTATION' | 'RECEIPT' | 'DELIVERY_ORDER' | 'PROFORMA_INVOICE';
 
 export type InvoiceDocument = {
   id: string;
