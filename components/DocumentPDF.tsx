@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     minHeight: 20,
   },
   colDescription: {
-    width: '45%', 
+    width: '50%', 
     paddingRight: 8,
   },
   colQty: {
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   colTotal: {
-    width: '25%', 
+    width: '20%', 
     textAlign: 'right',
   },
   headerText: {
@@ -245,6 +245,15 @@ const styles = StyleSheet.create({
     height: 64, // reduced by 20%
     objectFit: 'contain',
   },
+  pageNumber: {
+    position: 'absolute',
+    fontSize: 10,
+    bottom: 24,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    color: '#9CA3AF',
+  },
 });
 
 export const DocumentPDF: React.FC<DocumentPDFProps> = ({
@@ -290,7 +299,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
         <Text style={styles.docType}>{docType}</Text>
 
         {/* Billing Section */}
-        <View style={styles.billingSection}>
+        <View style={styles.billingSection} wrap={false}>
           <View style={styles.billingGrid}>
             <View style={styles.billingLeft}>
               <Text style={styles.label}>{isDeliveryOrder ? 'Ship To' : 'To'}</Text>
@@ -348,7 +357,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
         {/* Items Table */}
         <View style={styles.itemsTable}>
           <View>
-            <View style={styles.tableHeader}>
+            <View style={styles.tableHeader} fixed>
               <View style={styles.colDescription}>
                 <Text style={styles.headerText}>Description</Text>
               </View>
@@ -387,7 +396,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
               </View>
             ) : (
               items.map((item, idx) => (
-                <View key={idx} style={styles.tableRow}>
+                <View key={idx} style={styles.tableRow} wrap={false}>
                   <View style={styles.colDescription}>
                     <Text style={styles.rowText}>{item.description}</Text>
                   </View>
@@ -435,7 +444,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
 
         {/* Totals (hidden for Delivery Order) */}
         {!isDeliveryOrder && (
-          <View style={styles.totalsSection}>
+          <View style={styles.totalsSection} wrap={false}>
             {(taxAmount !== undefined && taxAmount !== 0) && (
               <View style={[styles.totalRow, { marginBottom: 4 }]}>
                 <Text style={styles.totalLabel}>{taxTitle || 'Tax'}</Text>
@@ -450,7 +459,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
         )}
 
         {/* Notes */}
-        <View style={styles.notesSection}>
+        <View style={styles.notesSection} wrap={false}>
           {!isDeliveryOrder ? (
             <>
               <Text style={styles.notesTitle}>Terms:</Text>
@@ -517,6 +526,9 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
             </View>
           )}
         </View>
+        <Text style={styles.pageNumber} render={({ pageNumber, totalPages }) => (
+          totalPages > 1 ? `Page ${pageNumber} of ${totalPages}` : ''
+        )} fixed />
       </Page>
     </Document>
   );
