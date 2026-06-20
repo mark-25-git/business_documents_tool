@@ -44,6 +44,7 @@ type DocumentPDFProps = {
   taxTitle?: string;
   taxAmount?: number;
   showEmail?: boolean;
+  status?: string;
 };
 
 const formatCurrency = (value: number) =>
@@ -254,6 +255,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#9CA3AF',
   },
+  cancelledStamp: {
+    position: 'absolute',
+    top: 240,
+    left: 170,
+    borderWidth: 5,
+    borderColor: '#DC2626',
+    borderRadius: 8,
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingLeft: 30,
+    paddingRight: 30,
+    transform: 'rotate(-18deg)',
+    opacity: 0.5,
+    zIndex: 1000,
+  },
+  cancelledText: {
+    color: '#DC2626',
+    fontSize: 44,
+    fontWeight: 'bold',
+    letterSpacing: 4,
+    textAlign: 'center',
+  },
 });
 
 export const DocumentPDF: React.FC<DocumentPDFProps> = ({
@@ -268,7 +291,9 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
   taxTitle,
   taxAmount,
   showEmail,
+  status,
 }) => {
+  const isCancelled = status === 'INACTIVE' || status === 'CANCELLED';
   const isDeliveryOrder = isDeliveryOrderProp ?? (
     docType.trim().toLowerCase() === "delivery order" ||
     docType.trim().toLowerCase() === "delivery order."
@@ -293,6 +318,11 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {isCancelled && (
+          <View style={styles.cancelledStamp} fixed>
+            <Text style={styles.cancelledText}>CANCELLED</Text>
+          </View>
+        )}
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.companyName}>PERABOT MEGAH ENTERPRISE</Text>

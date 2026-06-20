@@ -109,7 +109,6 @@ export async function getDocuments(): Promise<InvoiceDocument[]> {
     const { data, error } = await supabase
       .from("documents")
       .select("id, doc_number, type, date, customer_id, customer_name, total_amount, status")
-      .neq("status", "INACTIVE")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -409,22 +408,41 @@ export async function deleteDocument(id: string) {
 
     const originalDocNumber = doc.doc_number;
     
-    const now = new Date();
-    const myTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
-    const yyyy = myTime.getUTCFullYear();
-    const mm = String(myTime.getUTCMonth() + 1).padStart(2, '0');
-    const dd = String(myTime.getUTCDate()).padStart(2, '0');
-    const hh = String(myTime.getUTCHours()).padStart(2, '0');
-    const min = String(myTime.getUTCMinutes()).padStart(2, '0');
-    const ss = String(myTime.getUTCSeconds()).padStart(2, '0');
-    const timestamp = `${yyyy}${mm}${dd}-${hh}${min}${ss}`;
-    const inactiveDocNumber = `${originalDocNumber}-DEL-${timestamp}`;
+    // Find the highest document number currently in the database with the same prefix
+    const dashIndex = originalDocNumber.lastIndexOf("-");
+    const prefix = dashIndex !== -1 ? originalDocNumber.substring(0, dashIndex + 1) : "";
+    
+    const { data: highestDocs, error: highestError } = await supabase
+      .from("documents")
+      .select("doc_number")
+      .like("doc_number", `${prefix}%`)
+      .not("doc_number", "like", "%-DEL-%")
+      .order("doc_number", { ascending: false })
+      .limit(1);
+
+    if (highestError) throw highestError;
+
+    const isHighest = highestDocs && highestDocs.length > 0 && highestDocs[0].doc_number === originalDocNumber;
+    let targetDocNumber = originalDocNumber;
+
+    if (isHighest) {
+      const now = new Date();
+      const myTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+      const yyyy = myTime.getUTCFullYear();
+      const mm = String(myTime.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(myTime.getUTCDate()).padStart(2, '0');
+      const hh = String(myTime.getUTCHours()).padStart(2, '0');
+      const min = String(myTime.getUTCMinutes()).padStart(2, '0');
+      const ss = String(myTime.getUTCSeconds()).padStart(2, '0');
+      const timestamp = `${yyyy}${mm}${dd}-${hh}${min}${ss}`;
+      targetDocNumber = `${originalDocNumber}-DEL-${timestamp}`;
+    }
 
     const { error: updateError } = await supabase
       .from("documents")
       .update({ 
         status: "INACTIVE",
-        doc_number: inactiveDocNumber
+        doc_number: targetDocNumber
       })
       .eq("id", id);
 

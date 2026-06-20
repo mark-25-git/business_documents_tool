@@ -29,6 +29,20 @@ const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+const parseDocNumber = (fullNumber: string) => {
+  const match = fullNumber.match(/^(.*?)\s*(\(rev\d*\))$/i);
+  if (match) {
+    return {
+      base: match[1],
+      suffix: match[2],
+    };
+  }
+  return {
+    base: fullNumber,
+    suffix: "",
+  };
+};
+
 function InvoiceEditor() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -53,6 +67,8 @@ function InvoiceEditor() {
   // Form State
   const [type, setType] = React.useState<DocumentType>("INVOICE");
   const [date, setDate] = React.useState(getLocalDateString());
+  const [status, setStatus] = React.useState<string>("DRAFT");
+  const [revisedSuffix, setRevisedSuffix] = React.useState<string>("");
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [isTempCustomer, setIsTempCustomer] = React.useState(false);
   const [showCustomerSearch, setShowCustomerSearch] = React.useState(false);
@@ -183,6 +199,7 @@ function InvoiceEditor() {
     try {
       const fullDoc = await getDocument(docId);
       if (fullDoc) {
+        const parsedDocNum = parseDocNumber(fullDoc.docNumber || "");
         const docItems = fullDoc.items || [];
         const taxIdx = docItems.findIndex(i => i.description.startsWith('TAX:'));
         const itemsWithoutTax = docItems.filter(i => !i.description.startsWith('TAX:'));
@@ -216,12 +233,16 @@ function InvoiceEditor() {
           taxTitle: taxIdx !== -1 ? docItems[taxIdx].description.replace('TAX:', '') : "SST 10%",
           taxAmount: taxIdx !== -1 ? docItems[taxIdx].amount : 0,
           deliveryFee: deliveryIdx !== -1 ? itemsWithoutTax[deliveryIdx].amount : 0,
-          isFreeDelivery: deliveryIdx !== -1 && itemsWithoutTax[deliveryIdx].description.toLowerCase().includes('free')
+          isFreeDelivery: deliveryIdx !== -1 && itemsWithoutTax[deliveryIdx].description.toLowerCase().includes('free'),
+          status: fullDoc.status,
+          revisedSuffix: parsedDocNum.suffix
         });
 
         setType(fullDoc.type);
         setDate(fullDoc.date.split('T')[0]);
-        setEditableDocNumber(fullDoc.docNumber);
+        setEditableDocNumber(parsedDocNum.base);
+        setRevisedSuffix(parsedDocNum.suffix);
+        setStatus(fullDoc.status);
 
         const cust = customers.find(c => c.id === fullDoc.customerId);
         if (cust) {
@@ -283,30 +304,34 @@ function InvoiceEditor() {
   const [docNumber, setDocNumber] = React.useState<string>('');
 
   const docNumberPreview = React.useMemo(() => {
-    if (docNumber) return docNumber;
-    if (editableDocNumber) return editableDocNumber;
-    const now = new Date();
-    const year = now.getFullYear().toString().substr(-2);
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    return `${year}${month}-XXX`;
-  }, [date, docNumber, editableDocNumber]);
+    let base = docNumber || editableDocNumber;
+    if (!base) {
+      const now = new Date();
+      const year = now.getFullYear().toString().substr(-2);
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      base = `${year}${month}-XXX`;
+    }
+    return revisedSuffix ? `${base} ${revisedSuffix}` : base;
+  }, [date, docNumber, editableDocNumber, revisedSuffix]);
 
   React.useEffect(() => {
-    if (editableDocNumber.trim() && allDocs.length > 0) {
+    const combinedDocNumber = (editableDocNumber.trim() + (revisedSuffix ? " " + revisedSuffix.trim() : "")).trim();
+    if (combinedDocNumber && allDocs.length > 0) {
       const isDup = allDocs.some(d => 
-        d.docNumber.toLowerCase() === editableDocNumber.toLowerCase() && 
+        d.docNumber.toLowerCase() === combinedDocNumber.toLowerCase() && 
         d.id !== originalDocId
       );
       setIsDocNumberDuplicate(isDup);
     } else {
       setIsDocNumberDuplicate(false);
     }
-  }, [editableDocNumber, allDocs, originalDocId]);
+  }, [editableDocNumber, revisedSuffix, allDocs, originalDocId]);
 
   const isDirty = React.useMemo(() => {
     if (!originalDocId || !initialDocData) return true;
     if (date !== initialDocData.date) return true;
     if (editableDocNumber !== initialDocData.docNumber) return true;
+    if (revisedSuffix !== initialDocData.revisedSuffix) return true;
     if (selectedCustomer?.id !== initialDocData.customerId) return true;
     if (billingName !== initialDocData.billingName) return true;
     if (billingAddress !== initialDocData.billingAddress) return true;
@@ -336,7 +361,7 @@ function InvoiceEditor() {
       if (currentItems[i].unitPrice !== initialItemsList[i].unitPrice) return true;
     }
     return false;
-  }, [originalDocId, initialDocData, date, editableDocNumber, selectedCustomer, billingName, billingAddress, billingPhone, billingEmail, isDifferentShipping, shippingName, shippingAddress, shippingPhone, isTaxEnabled, taxTitle, taxAmount, isFreeDelivery, deliveryFee, items, syncToMaster]);
+  }, [originalDocId, initialDocData, date, editableDocNumber, revisedSuffix, selectedCustomer, billingName, billingAddress, billingPhone, billingEmail, isDifferentShipping, shippingName, shippingAddress, shippingPhone, isTaxEnabled, taxTitle, taxAmount, isFreeDelivery, deliveryFee, items, syncToMaster]);
 
   const documentTypeLabels: Record<DocumentType, string> = {
     INVOICE: "Invoice",
@@ -383,8 +408,9 @@ function InvoiceEditor() {
       taxTitle={isTaxEnabled ? taxTitle : undefined}
       taxAmount={isTaxEnabled ? taxAmount : undefined}
       showEmail={showEmailOnDoc}
+      status={status}
     />
-  ), [type, docNumber, docNumberPreview, date, selectedCustomer, billingName, billingPhone, billingAddress, billingEmail, isDifferentShipping, shippingName, shippingAddress, shippingPhone, previewItems, imageUrl, isTaxEnabled, taxTitle, taxAmount, showEmailOnDoc]);
+  ), [type, docNumber, docNumberPreview, date, selectedCustomer, billingName, billingPhone, billingAddress, billingEmail, isDifferentShipping, shippingName, shippingAddress, shippingPhone, previewItems, imageUrl, isTaxEnabled, taxTitle, taxAmount, showEmailOnDoc, status]);
 
   const subtotal = baseItems.reduce((sum, item) => sum + Number(item.amount ?? Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0);
 
@@ -468,7 +494,7 @@ function InvoiceEditor() {
         shippingAddress: isDifferentShipping ? shippingAddress : (billingAddress || selectedCustomer.address || ""),
         shippingPhone: isDifferentShipping ? shippingPhone : (billingPhone || selectedCustomer.phone || ""),
         items: allItems.filter(i => i.description.trim() !== ''),
-        docNumber: editableDocNumber.trim() || undefined,
+        docNumber: (editableDocNumber.trim() + (revisedSuffix ? " " + revisedSuffix.trim() : "")).trim() || undefined,
         syncToMaster: syncToMaster
       }
     };
@@ -524,7 +550,12 @@ function InvoiceEditor() {
 
   const handleDownload = async () => {
     setIsSaving(true);
-    try { await downloadPDF(docNumber || editableDocNumber); }
+    try {
+      const baseNum = docNumber || editableDocNumber;
+      const hasSuffix = revisedSuffix && baseNum.endsWith(revisedSuffix);
+      const finalNum = revisedSuffix && !hasSuffix ? `${baseNum} ${revisedSuffix}` : baseNum;
+      await downloadPDF(finalNum);
+    }
     catch (error) { alert("Failed to download PDF."); }
     finally { setIsSaving(false); }
   };
@@ -575,6 +606,8 @@ function InvoiceEditor() {
     setShippingName("");
     setShippingAddress("");
     setShippingPhone("");
+    setStatus("DRAFT");
+    setRevisedSuffix("");
 
     const num = await getNextDocNumber();
     if (num) setEditableDocNumber(num);
@@ -657,8 +690,13 @@ function InvoiceEditor() {
     <div className="min-h-screen bg-gray-50 p-6 pb-24">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Simple Header */}
-        <div className="no-print">
+        <div className="no-print flex items-center gap-3">
           <h1 className="text-2xl font-bold text-gray-900 leading-tight">{pageTitle}</h1>
+          {(status === "INACTIVE" || status === "CANCELLED") && (
+            <Badge variant="destructive" className="text-sm px-2.5 py-0.5">
+              Cancelled
+            </Badge>
+          )}
         </div>
 
         {/* Toolbar Card */}
@@ -686,7 +724,12 @@ function InvoiceEditor() {
                         <DropdownItem key={d.id} onClick={() => handleSelectDocument(d.id)}>
                           <div className="flex justify-between items-center w-full group">
                             <div>
-                              <div className="font-medium text-gray-900 group-hover:text-primary transition-colors">{d.docNumber}</div>
+                              <div className="font-medium text-gray-900 group-hover:text-primary transition-colors">
+                                {d.docNumber}
+                                {(d.status === "INACTIVE" || d.status === "CANCELLED") && (
+                                  <span className="text-red-500 text-xs ml-1.5 font-semibold">(Cancelled)</span>
+                                )}
+                              </div>
                               <div className="text-[10px] text-gray-500">{d.customerName} • {new Date(d.date).toLocaleDateString('en-GB')}</div>
                             </div>
                             <div className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-600">
@@ -737,11 +780,17 @@ function InvoiceEditor() {
                 ))}</div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-semibold text-gray-500 block mb-2">Document number</label>
-                  <Input value={editableDocNumber} onChange={e => setEditableDocNumber(e.target.value)} placeholder="e.g. 2403-001" className={`bg-white ${isDocNumberDuplicate ? 'border-red-500 focus-visible:ring-red-500' : ''}`} disabled={!!originalDocId || !!docNumber} />
-                  {isDocNumberDuplicate && <p className="text-[10px] text-red-500 mt-1 font-medium">Duplicate document number</p>}
-                  <p className="text-[10px] text-gray-400 mt-1">Leave empty to auto-generate</p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-500 block mb-2">Document number</label>
+                    <Input value={editableDocNumber} onChange={e => setEditableDocNumber(e.target.value)} placeholder="e.g. 2403-001" className={`bg-white ${isDocNumberDuplicate ? 'border-red-500 focus-visible:ring-red-500' : ''}`} disabled={!!originalDocId || !!docNumber} />
+                    {isDocNumberDuplicate && <p className="text-[10px] text-red-500 mt-1 font-medium">Duplicate document number</p>}
+                    <p className="text-[10px] text-gray-400 mt-1">Leave empty to auto-generate</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-semibold text-gray-500 block mb-2">Revised suffix</label>
+                    <Input value={revisedSuffix} onChange={e => setRevisedSuffix(e.target.value)} placeholder="e.g. (rev01)" className="bg-white animate-in fade-in duration-200" />
+                  </div>
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-gray-500 block mb-2">Date</label>
