@@ -454,6 +454,51 @@ export async function deleteDocument(id: string) {
   }
 }
 
+/**
+ * Recover a deleted/inactive document by ID
+ */
+export async function recoverDocument(id: string) {
+  try {
+    const { data: doc, error: fetchError } = await supabase
+      .from("documents")
+      .select("doc_number, type, status")
+      .eq("id", id)
+      .single();
+    
+    if (fetchError || !doc) throw fetchError || new Error("Document not found");
+
+    const targetStatus = doc.type === 'INVOICE' ? 'PENDING' : 'DRAFT';
+    const restoredDocNumber = doc.doc_number.replace(/-DEL-\d{8}-\d{6}/, '');
+
+    const { data: existing, error: checkError } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("doc_number", restoredDocNumber)
+      .neq("id", id)
+      .limit(1);
+
+    if (checkError) throw checkError;
+    if (existing && existing.length > 0) {
+      return { success: false, error: `Cannot recover: document number ${restoredDocNumber} already exists.` };
+    }
+
+    const { error: updateError } = await supabase
+      .from("documents")
+      .update({ 
+        status: targetStatus,
+        doc_number: restoredDocNumber
+      })
+      .eq("id", id);
+
+    if (updateError) throw updateError;
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to recover document from Supabase:", error);
+    return { success: false, error: error.message || error.toString() };
+  }
+}
+
+
 export type ItemSuggestion = {
   description: string;
   price: number;

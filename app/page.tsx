@@ -4,7 +4,7 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Customer, LineItem, DocumentType, InvoiceDocument, CreateDocumentPayload } from "@/lib/types";
-import { getCustomers, createCustomer, createDocument, getItemSuggestions, ItemSuggestion, getDocuments, getDocument, getNextDocNumber, updateDocument, deleteDocument } from "@/lib/api";
+import { getCustomers, createCustomer, createDocument, getItemSuggestions, ItemSuggestion, getDocuments, getDocument, getNextDocNumber, updateDocument, deleteDocument, recoverDocument } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -582,6 +582,28 @@ function InvoiceEditor() {
     }
   };
 
+  const handleRecover = async () => {
+    if (!originalDocId) return;
+    if (!confirm("Are you sure you want to recover this document?")) return;
+    
+    setIsSaving(true);
+    try {
+      const res = await recoverDocument(originalDocId);
+      if (res.success) {
+        alert("Document recovered successfully.");
+        const updatedDocs = await getDocuments();
+        setAllDocs(updatedDocs);
+        await handleSelectDocument(originalDocId);
+      } else {
+        alert("Error recovering document: " + res.error);
+      }
+    } catch (error) {
+      alert("Failed to recover document.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleStartNew = async () => {
     if (urlDocId) router.push('/');
     setOriginalDocId(null);
@@ -754,9 +776,15 @@ function InvoiceEditor() {
               {/* Right Section: Action Buttons */}
               <div className="flex items-center gap-3 w-full md:w-auto">
                 {originalDocId && (
-                  <Button variant="outline" onClick={handleDelete} disabled={isSaving} className="flex-1 md:flex-none h-10 px-4 border-red-200 hover:border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 shadow-sm">
-                    Delete
-                  </Button>
+                  (status === "INACTIVE" || status === "CANCELLED") ? (
+                    <Button variant="outline" onClick={handleRecover} disabled={isSaving} className="flex-1 md:flex-none h-10 px-4 border-green-200 hover:border-green-300 text-green-600 hover:bg-green-50 hover:text-green-700 shadow-sm">
+                      Recover
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onClick={handleDelete} disabled={isSaving} className="flex-1 md:flex-none h-10 px-4 border-red-200 hover:border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 shadow-sm">
+                      Delete
+                    </Button>
+                  )
                 )}
                 <Button variant="outline" onClick={handleDownload} disabled={isSaving || isDocNumberDuplicate} className="flex-1 md:flex-none h-10 px-4">
                   <Download className="h-4 w-4 mr-2" />Download PDF
