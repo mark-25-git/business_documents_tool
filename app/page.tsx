@@ -471,8 +471,9 @@ function InvoiceEditor() {
     }
   };
 
-  const getPayload = async (): Promise<{ success: boolean; data?: CreateDocumentPayload; error?: string }> => {
+  const getPayload = async (customerIdOverride?: string): Promise<{ success: boolean; data?: CreateDocumentPayload; error?: string }> => {
     if (!selectedCustomer) return { success: false, error: "No customer selected" };
+    const resolvedCustomerId = customerIdOverride ?? selectedCustomer.id;
     const allItems = [...previewItems];
     if (isTaxEnabled) {
       allItems.push({ description: `TAX:${taxTitle}`, quantity: 1, unitPrice: taxAmount, amount: taxAmount });
@@ -482,7 +483,7 @@ function InvoiceEditor() {
       data: {
         type: type,
         date: date,
-        customerId: selectedCustomer.id,
+        customerId: resolvedCustomerId,
         customerName: billingName,
         totalAmount: totalAmount,
         status: type === 'INVOICE' ? 'PENDING' : 'DRAFT',
@@ -522,7 +523,8 @@ function InvoiceEditor() {
       setSelectedCustomer(added);
       setCustomers(prev => [...prev, added]);
       setIsTempCustomer(false);
-      const payloadResult = await getPayload();
+      // Pass the real ID directly — React state update above is async and not yet reflected
+      const payloadResult = await getPayload(resCust.id!);
       if (payloadResult.success) await performSave(payloadResult.data!);
     } else {
       const payloadResult = await getPayload();
