@@ -242,8 +242,8 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   chopImage: {
-    width: 64,  // reduced by 20%
-    height: 64, // reduced by 20%
+    width: 70.4,
+    height: 70.4,
     objectFit: 'contain',
   },
   pageNumber: {
@@ -431,49 +431,54 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
                 <Text style={styles.rowText}>No items</Text>
               </View>
             ) : (
-              items.map((item, idx) => (
-                <View key={idx} style={styles.tableRow} wrap={false}>
-                  <View style={styles.colDescription}>
-                    <Text style={styles.rowText}>{item.description}</Text>
+              items.map((item, idx) => {
+                const isFreeDel = item.description.toLowerCase().trim() === "free delivery";
+                return (
+                  <View key={idx} style={styles.tableRow} wrap={false}>
+                    <View style={styles.colDescription}>
+                      <Text style={styles.rowText}>{item.description}</Text>
+                    </View>
+                    {!isDeliveryOrder && (
+                      <View style={styles.colQty}>
+                        <Text style={styles.rowText}>{isFreeDel ? "" : item.quantity}</Text>
+                      </View>
+                    )}
+                    {!isDeliveryOrder && (
+                      <>
+                        <View style={styles.colUnitPrice}>
+                          <Text style={styles.rowText}>
+                            {isFreeDel ? "" : formatCurrency(Number(item.unitPrice || 0))}
+                          </Text>
+                        </View>
+                        <View style={styles.colTotal}>
+                          <Text style={styles.rowText}>
+                            {isFreeDel
+                              ? ""
+                              : formatCurrency(
+                                  Number(
+                                    item.amount ??
+                                      Number(item.quantity || 0) * Number(item.unitPrice || 0)
+                                  )
+                                )}
+                          </Text>
+                        </View>
+                      </>
+                    )}
+                    {isDeliveryOrder && (
+                      <View
+                        style={{
+                          width: '10%',
+                          marginLeft: 'auto',
+                          textAlign: 'right',
+                          paddingRight: 0,
+                        }}
+                      >
+                        <Text style={styles.rowText}>{isFreeDel ? "" : item.quantity}</Text>
+                      </View>
+                    )}
                   </View>
-                  {!isDeliveryOrder && (
-                    <View style={styles.colQty}>
-                      <Text style={styles.rowText}>{item.quantity}</Text>
-                    </View>
-                  )}
-                  {!isDeliveryOrder && (
-                    <>
-                      <View style={styles.colUnitPrice}>
-                        <Text style={styles.rowText}>
-                          {formatCurrency(Number(item.unitPrice || 0))}
-                        </Text>
-                      </View>
-                      <View style={styles.colTotal}>
-                        <Text style={styles.rowText}>
-                          {formatCurrency(
-                            Number(
-                              item.amount ??
-                              Number(item.quantity || 0) * Number(item.unitPrice || 0)
-                            )
-                          )}
-                        </Text>
-                      </View>
-                    </>
-                  )}
-                  {isDeliveryOrder && (
-                    <View
-                      style={{
-                        width: '10%',
-                        marginLeft: 'auto',
-                        textAlign: 'right',
-                        paddingRight: 0,
-                      }}
-                    >
-                      <Text style={styles.rowText}>{item.quantity}</Text>
-                    </View>
-                  )}
-                </View>
-              ))
+                );
+              })
             )}
           </View>
         </View>

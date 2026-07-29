@@ -551,6 +551,7 @@ function InvoiceEditor() {
   };
 
   const handleDownload = async () => {
+    if (isDirty) return;
     setIsSaving(true);
     try {
       const baseNum = docNumber || editableDocNumber;
@@ -788,7 +789,7 @@ function InvoiceEditor() {
                     </Button>
                   )
                 )}
-                <Button variant="outline" onClick={handleDownload} disabled={isSaving || isDocNumberDuplicate} className="flex-1 md:flex-none h-10 px-4">
+                <Button variant="outline" onClick={handleDownload} disabled={isSaving || isDocNumberDuplicate || isDirty} title={isDirty ? "Save document before downloading" : ""} className="flex-1 md:flex-none h-10 px-4">
                   <Download className="h-4 w-4 mr-2" />Download PDF
                 </Button>
                 <Button onClick={handleSave} disabled={isSaving || isDocNumberDuplicate || (originalDocId ? !isDirty : false)} className="flex-1 md:flex-none h-10 px-4 shadow-sm">

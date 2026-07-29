@@ -112,31 +112,36 @@ export function DocumentPreview({
               {items.length === 0 ? (
                 <div className="py-3 text-gray-500 text-sm">No items</div>
               ) : (
-                items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="grid grid-cols-12 py-[0.1875rem] text-sm"
-                  >
-                    <div className="col-span-6 text-gray-900">
-                      {item.description}
+                items.map((item, idx) => {
+                  const isFreeDel = item.description.toLowerCase().trim() === "free delivery";
+                  return (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-12 py-[0.1875rem] text-sm"
+                    >
+                      <div className="col-span-6 text-gray-900">
+                        {item.description}
+                      </div>
+                      <div className="col-span-2 text-right text-gray-700">
+                        {isFreeDel ? "" : item.quantity}
+                      </div>
+                      <div className="col-span-2 text-right text-gray-700">
+                        {isFreeDel ? "" : formatCurrency(Number(item.unitPrice || 0), currency)}
+                      </div>
+                      <div className="col-span-2 text-right font-medium text-gray-900">
+                        {isFreeDel
+                          ? ""
+                          : formatCurrency(
+                              Number(
+                                item.amount ??
+                                  Number(item.quantity || 0) * Number(item.unitPrice || 0)
+                              ),
+                              currency
+                            )}
+                      </div>
                     </div>
-                    <div className="col-span-2 text-right text-gray-700">
-                      {item.quantity}
-                    </div>
-                    <div className="col-span-2 text-right text-gray-700">
-                      {formatCurrency(Number(item.unitPrice || 0), currency)}
-                    </div>
-                    <div className="col-span-2 text-right font-medium text-gray-900">
-                      {formatCurrency(
-                        Number(
-                          item.amount ??
-                            Number(item.quantity || 0) * Number(item.unitPrice || 0)
-                        ),
-                        currency
-                      )}
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -174,12 +179,12 @@ export function DocumentPreview({
 
         <div className="pt-4 space-y-3">
           <div className="font-semibold">Issued by</div>
-          <div className="w-20 h-20 flex items-center justify-center">
+          <div className="w-[88px] h-[88px] flex items-center justify-center">
             <Image
               src="/company-chop.png"
               alt="Company Chop"
-              width={80}
-              height={80}
+              width={88}
+              height={88}
               className="w-full h-full object-contain"
             />
           </div>
