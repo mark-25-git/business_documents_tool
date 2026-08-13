@@ -66,3 +66,42 @@ CREATE POLICY "Allow public read line_items" ON line_items FOR SELECT USING (tru
 CREATE POLICY "Allow public insert line_items" ON line_items FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update line_items" ON line_items FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete line_items" ON line_items FOR DELETE USING (true);
+
+-- Create conversational_invoice_jobs table for tracking invoice creation sessions & audit history
+CREATE TABLE IF NOT EXISTS conversational_invoice_jobs (
+  id TEXT PRIMARY KEY,
+  chat_id BIGINT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, INACTIVE, ABANDONED
+  draft_customer JSONB,
+  draft_items JSONB DEFAULT '[]'::jsonb,
+  chat_history JSONB DEFAULT '[]'::jsonb, -- Array of { sender, text, timestamp }
+  recent_acknowledgments JSONB DEFAULT '[]'::jsonb,
+  job_lock TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Alter statement for existing installations
+ALTER TABLE conversational_invoice_jobs ADD COLUMN IF NOT EXISTS recent_acknowledgments JSONB DEFAULT '[]'::jsonb;
+
+
+ALTER TABLE conversational_invoice_jobs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read conversational_invoice_jobs" ON conversational_invoice_jobs FOR SELECT USING (true);
+CREATE POLICY "Allow public insert conversational_invoice_jobs" ON conversational_invoice_jobs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update conversational_invoice_jobs" ON conversational_invoice_jobs FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete conversational_invoice_jobs" ON conversational_invoice_jobs FOR DELETE USING (true);
+
+-- Create user_memory table for cross-session facts & preferences
+CREATE TABLE IF NOT EXISTS user_memory (
+  chat_id BIGINT PRIMARY KEY,
+  facts JSONB DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE user_memory ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public read user_memory" ON user_memory FOR SELECT USING (true);
+CREATE POLICY "Allow public insert user_memory" ON user_memory FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update user_memory" ON user_memory FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete user_memory" ON user_memory FOR DELETE USING (true);
+
+

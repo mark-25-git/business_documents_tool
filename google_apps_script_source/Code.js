@@ -1,13 +1,13 @@
 /**
- * BACKEND CODE FOR GOOGLE SHEETS
+ * BACKEND CODE FOR GOOGLE SHEETS (HIGH PERFORMANCE & LOW LATENCY EDITION)
  * Copy and paste this into your Google Apps Script editor (Extensions > Apps Script)
+ * then click Deploy > New deployment (Web app, Execute as Me, Access: Anyone).
  */
 
 const SHEETS = {
   DOCUMENTS: 'Documents',
   LINE_ITEMS: 'LineItems',
-  CUSTOMERS: 'Customers',
-  CONFIG: 'Config'
+  CUSTOMERS: 'Customers'
 };
 
 function setup() {
@@ -16,24 +16,18 @@ function setup() {
   // Create Documents Sheet
   if (!ss.getSheetByName(SHEETS.DOCUMENTS)) {
     const s = ss.insertSheet(SHEETS.DOCUMENTS);
-    s.appendRow(['DocID', 'DocNumber', 'Type', 'Date', 'CustomerID', 'CustomerName', 'TotalAmount', 'Status', 'Notes', 'CreatedAt', 'BillingAddress', 'BillingPhone', 'BillingEmail', 'ShippingName', 'ShippingAddress', 'ShippingPhone']);
+    s.appendRow(['DocID', 'DocNumber', 'Type', 'Date', 'CustomerID', 'CustomerName', 'TotalAmount', 'Status', 'Notes', 'CreatedAt', 'BillingAddress', 'BillingPhone', 'BillingEmail', 'ShippingName', 'ShippingAddress', 'ShippingPhone', 'DeliveryFee', 'IsFreeDelivery']);
     s.setFrozenRows(1);
   } else {
-    // Check if new columns need to be added to existing sheet
     const s = ss.getSheetByName(SHEETS.DOCUMENTS);
     const headers = s.getRange(1, 1, 1, s.getLastColumn()).getValues()[0];
-    const newHeaders = ['BillingAddress', 'BillingPhone', 'BillingEmail', 'ShippingName', 'ShippingAddress', 'ShippingPhone'];
+    const newHeaders = ['BillingAddress', 'BillingPhone', 'BillingEmail', 'ShippingName', 'ShippingAddress', 'ShippingPhone', 'DeliveryFee', 'IsFreeDelivery'];
 
     newHeaders.forEach(header => {
       if (headers.map(h => h.toLowerCase()).indexOf(header.toLowerCase()) === -1) {
         s.getRange(1, s.getLastColumn() + 1).setValue(header);
       }
     });
-    // Record backend version
-    const configSheet = ss.getSheetByName(SHEETS.CONFIG);
-    if (configSheet) {
-      configSheet.appendRow(['BackendVersion', '2.1.0']);
-    }
   }
 
   // Create LineItems Sheet
@@ -59,64 +53,76 @@ function setup() {
       }
     });
   }
-
-  // Create Config Sheet
-  if (!ss.getSheetByName(SHEETS.CONFIG)) {
-    const s = ss.insertSheet(SHEETS.CONFIG);
-    s.appendRow(['Key', 'Value']);
-    s.appendRow(['LastDocMonth', '']);
-    s.appendRow(['DocCounter', '0']);
-  }
 }
 
-function doGet(e) {
-  const action = e.parameter.action;
-
-  if (action === 'getCustomers') {
-    return getCustomers();
-  } else if (action === 'getDocuments') {
-    return getDocuments();
-  } else if (action === 'getDocument') {
-    return getDocument(e.parameter.id);
-  } else if (action === 'getItemSuggestions') {
-    return getItemSuggestions();
-  } else if (action === 'getNextDocNumber') {
-    return getNextDocNumber();
-  }
-
-  return response({ error: 'Invalid action' });
-}
-
-function doPost(e) {
+function handleRequest(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
-    const action = e.parameter.action;
+    let action = e && e.parameter && e.parameter.action;
+    let data = {};
 
-    if (action === 'createCustomer') {
-      return createCustomer(data);
-    } else if (action === 'updateCustomer') {
-      return updateCustomer(data);
-    } else if (action === 'createDocument') {
-      return createDocument(data);
-    } else if (action === 'updateDocument') {
-      return updateDocument(data);
-    } else if (action === 'deleteDocument') {
-      return deleteDocument(data.id);
+    if (e && e.postData && e.postData.contents) {
+      try {
+        data = JSON.parse(e.postData.contents);
+      } catch (err) {
+        data = {};
+      }
     }
 
-    return response({ success: false, error: 'Invalid action' });
+    if (!action && data && data.action) {
+      action = data.action;
+    }
+
+    switch (action) {
+      case 'getCustomers':
+        return getCustomers();
+      case 'createCustomer':
+        return createCustomer(data);
+      case 'updateCustomer':
+        return updateCustomer(data);
+      case 'deleteCustomer':
+        return deleteCustomer(data.id || (e.parameter && e.parameter.id));
+      case 'getDocuments':
+        return getDocuments();
+      case 'getDocument':
+        return getDocument(data.id || (e.parameter && e.parameter.id));
+      case 'createDocument':
+        return createDocument(data);
+      case 'updateDocument':
+        return updateDocument(data);
+      case 'deleteDocument':
+        return deleteDocument(data.id || (e.parameter && e.parameter.id));
+      case 'recoverDocument':
+        return recoverDocument(data.id || (e.parameter && e.parameter.id));
+      case 'getItemSuggestions':
+        return getItemSuggestions();
+      case 'getNextDocNumber':
+        return getNextDocNumber();
+      case 'clearAllData':
+        return clearAllData();
+      default:
+        return response({ success: false, error: 'Invalid action: ' + action });
+    }
   } catch (err) {
     return response({ success: false, error: err.toString() });
   }
 }
 
-// --- Service Functions ---
+function doGet(e) {
+  return handleRequest(e);
+}
+
+function doPost(e) {
+  return handleRequest(e);
+}
+
+// --- CRUD SERVICE FUNCTIONS ---
 
 function getCustomers() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.CUSTOMERS);
   const data = sheet.getDataRange().getValues();
-  const headers = data.shift().map(h => h.toString().trim().toLowerCase());
+  if (data.length <= 1) return response({ success: true, data: [] });
 
+  const headers = data.shift().map(h => h.toString().trim().toLowerCase());
   const idx = name => headers.indexOf(name.toLowerCase());
 
   const customers = data.map(row => ({
@@ -139,19 +145,19 @@ function getCustomers() {
 
 function createCustomer(data) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.CUSTOMERS);
-  const headers = sheet.getDataRange().getValues()[0].map(h => h.toString().trim().toLowerCase());
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => h.toString().trim().toLowerCase());
   const idx = name => headers.indexOf(name.toLowerCase());
 
-  const id = 'CUST-' + new Date().getTime();
+  const id = data.id || ('CUST-' + new Date().getTime());
   const row = new Array(headers.length).fill('');
 
   const mapping = {
     'customerid': id,
     'name': data.name,
-    'phone': data.phone,
-    'address': data.address,
-    'email': data.email,
-    'createdat': new Date().toISOString(),
+    'phone': data.phone || '',
+    'address': data.address || '',
+    'email': data.email || '',
+    'createdat': data.createdAt || new Date().toISOString(),
     'billingaddress': data.billingAddress || data.address || '',
     'billingphone': data.billingPhone || data.phone || '',
     'billingemail': data.billingEmail || data.email || '',
@@ -162,9 +168,7 @@ function createCustomer(data) {
 
   Object.keys(mapping).forEach(key => {
     const colIdx = idx(key);
-    if (colIdx !== -1) {
-      row[colIdx] = mapping[key];
-    }
+    if (colIdx !== -1) row[colIdx] = mapping[key];
   });
 
   sheet.appendRow(row);
@@ -174,24 +178,28 @@ function createCustomer(data) {
 function updateCustomer(data) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.CUSTOMERS);
   const rows = sheet.getDataRange().getValues();
-  const headers = rows.shift().map(h => h.toString().trim().toLowerCase());
-  const idx = name => headers.indexOf(name.toLowerCase());
+  if (rows.length <= 1) return response({ success: false, error: 'Customer not found' });
 
-  const customerId = data.id;
-  let rowIndex = -1;
+  const headers = rows[0].map(h => h.toString().trim().toLowerCase());
+  const idx = name => headers.indexOf(name.toLowerCase());
   const idColIdx = idx('customerid');
 
   if (idColIdx === -1) return response({ success: false, error: 'CustomerID column not found' });
 
-  for (let i = 0; i < rows.length; i++) {
+  const customerId = data.id;
+  let rowIndex = -1;
+
+  for (let i = 1; i < rows.length; i++) {
     if (rows[i][idColIdx] === customerId) {
-      rowIndex = i + 2; // +1 for offset, +1 for header
+      rowIndex = i + 1; // 1-indexed
       break;
     }
   }
 
   if (rowIndex === -1) return response({ success: false, error: 'Customer not found' });
 
+  // Update target row array in memory for single-call write performance
+  const targetRow = rows[rowIndex - 1];
   const updateMap = {
     'name': data.name,
     'phone': data.phone,
@@ -208,57 +216,118 @@ function updateCustomer(data) {
   Object.keys(updateMap).forEach(key => {
     const colIdx = idx(key);
     if (colIdx !== -1 && updateMap[key] !== undefined) {
-      sheet.getRange(rowIndex, colIdx + 1).setValue(updateMap[key]);
+      targetRow[colIdx] = updateMap[key];
     }
   });
 
+  // Fast single batch range update
+  sheet.getRange(rowIndex, 1, 1, targetRow.length).setValues([targetRow]);
   return response({ success: true });
 }
 
-function migrateCustomersToDualAddress() {
+function deleteCustomer(customerId) {
+  if (!customerId) return response({ success: false, error: 'CustomerID is required' });
+
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.CUSTOMERS);
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0].map(h => h.toString().trim().toLowerCase());
-  const idx = name => headers.indexOf(name.toLowerCase());
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0].map(h => h.toString().trim().toLowerCase());
+  const idColIdx = headers.indexOf('customerid');
 
-  // Columns to populate if empty
-  const bAddrIdx = idx('billingaddress');
-  const bPhoneIdx = idx('billingphone');
-  const sNameIdx = idx('shippingname');
-  const sAddrIdx = idx('shippingaddress');
-  const sPhoneIdx = idx('shippingphone');
+  if (idColIdx === -1) return response({ success: false, error: 'CustomerID column not found' });
 
-  const nameIdx = idx('name');
-  const phoneIdx = idx('phone');
-  const addrIdx = idx('address');
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const rowIndex = i + 1;
-
-    // Fill Billing Address from legacy Address if empty
-    if (bAddrIdx !== -1 && !row[bAddrIdx] && addrIdx !== -1) {
-      sheet.getRange(rowIndex, bAddrIdx + 1).setValue(row[addrIdx]);
-    }
-    // Fill Billing Phone from legacy Phone if empty
-    if (bPhoneIdx !== -1 && !row[bPhoneIdx] && phoneIdx !== -1) {
-      sheet.getRange(rowIndex, bPhoneIdx + 1).setValue(row[phoneIdx]);
-    }
-    // Fill Shipping Name from Name if empty
-    if (sNameIdx !== -1 && !row[sNameIdx] && nameIdx !== -1) {
-      sheet.getRange(rowIndex, sNameIdx + 1).setValue(row[nameIdx]);
-    }
-    // Fill Shipping Address from legacy Address if empty
-    if (sAddrIdx !== -1 && !row[sAddrIdx] && addrIdx !== -1) {
-      sheet.getRange(rowIndex, sAddrIdx + 1).setValue(row[addrIdx]);
-    }
-    // Fill Shipping Phone from legacy Phone if empty
-    if (sPhoneIdx !== -1 && !row[sPhoneIdx] && phoneIdx !== -1) {
-      sheet.getRange(rowIndex, sPhoneIdx + 1).setValue(row[phoneIdx]);
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][idColIdx] === customerId) {
+      sheet.deleteRow(i + 1);
+      return response({ success: true });
     }
   }
 
-  return response({ success: true, message: 'Migration complete' });
+  return response({ success: false, error: 'Customer not found' });
+}
+
+function getDocuments() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.DOCUMENTS);
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return response({ success: true, data: [] });
+
+  const headers = data.shift().map(h => h.toString().trim().toLowerCase());
+  const idx = name => headers.indexOf(name.toLowerCase());
+
+  const docs = data.map(row => ({
+    id: row[idx('docid')],
+    docNumber: row[idx('docnumber')],
+    type: row[idx('type')],
+    date: row[idx('date')],
+    customerId: row[idx('customerid')],
+    customerName: row[idx('customername')],
+    totalAmount: Number(row[idx('totalamount')] || 0),
+    status: row[idx('status')],
+    deliveryFee: idx('deliveryfee') !== -1 ? Number(row[idx('deliveryfee')] || 0) : 0,
+    isFreeDelivery: idx('isfreedelivery') !== -1 ? Boolean(row[idx('isfreedelivery')]) : false
+  })).reverse(); // Return newest first
+
+  return response({ success: true, data: docs });
+}
+
+function getDocument(docId) {
+  if (!docId) return response({ success: false, error: 'Document ID is required' });
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const docSheet = ss.getSheetByName(SHEETS.DOCUMENTS);
+  const itemSheet = ss.getSheetByName(SHEETS.LINE_ITEMS);
+
+  const docRows = docSheet.getDataRange().getValues();
+  if (docRows.length <= 1) return response({ success: false, error: 'Document not found' });
+
+  const headers = docRows[0].map(h => h.toString().trim().toLowerCase());
+  const idx = name => headers.indexOf(name.toLowerCase());
+  const idColIdx = idx('docid');
+
+  let docRow = null;
+  for (let i = 1; i < docRows.length; i++) {
+    if (docRows[i][idColIdx] === docId) {
+      docRow = docRows[i];
+      break;
+    }
+  }
+
+  if (!docRow) return response({ success: false, error: 'Document not found' });
+
+  const doc = {
+    id: docRow[idx('docid')],
+    docNumber: docRow[idx('docnumber')],
+    type: docRow[idx('type')],
+    date: docRow[idx('date')],
+    customerId: docRow[idx('customerid')],
+    customerName: docRow[idx('customername')],
+    totalAmount: Number(docRow[idx('totalamount')] || 0),
+    status: docRow[idx('status')],
+    notes: idx('notes') !== -1 ? (docRow[idx('notes')] || '') : '',
+    billingAddress: idx('billingaddress') !== -1 ? (docRow[idx('billingaddress')] || '') : '',
+    billingPhone: idx('billingphone') !== -1 ? (docRow[idx('billingphone')] || '') : '',
+    billingEmail: idx('billingemail') !== -1 ? (docRow[idx('billingemail')] || '') : '',
+    shippingName: idx('shippingname') !== -1 ? (docRow[idx('shippingname')] || '') : '',
+    shippingAddress: idx('shippingaddress') !== -1 ? (docRow[idx('shippingaddress')] || '') : '',
+    shippingPhone: idx('shippingphone') !== -1 ? (docRow[idx('shippingphone')] || '') : '',
+    deliveryFee: idx('deliveryfee') !== -1 ? Number(docRow[idx('deliveryfee')] || 0) : 0,
+    isFreeDelivery: idx('isfreedelivery') !== -1 ? Boolean(docRow[idx('isfreedelivery')]) : false
+  };
+
+  // Fetch Line Items
+  const itemData = itemSheet.getDataRange().getValues();
+  itemData.shift(); // remove header
+  const items = itemData
+    .filter(row => row[1] === docId)
+    .map(row => ({
+      id: row[0],
+      docId: row[1],
+      description: row[2],
+      quantity: Number(row[3] || 1),
+      unitPrice: Number(row[4] || 0),
+      amount: Number(row[5] || 0)
+    }));
+
+  return response({ success: true, data: { ...doc, items } });
 }
 
 function createDocument(data) {
@@ -266,51 +335,22 @@ function createDocument(data) {
   const docSheet = ss.getSheetByName(SHEETS.DOCUMENTS);
   const itemSheet = ss.getSheetByName(SHEETS.LINE_ITEMS);
 
-  // Generate or use provided Doc Number
-  let docNumber;
-  if (data.docNumber) {
-    // Check for duplicates directly from sheet since getDocuments returns TextOutput
-    const docRows = docSheet.getDataRange().getValues();
-    const headersTmp = docRows.shift().map(h => h.toString().trim().toLowerCase());
-    const docNumIdx = headersTmp.indexOf('docnumber');
-    if (docNumIdx !== -1 && docRows.some(r => r[docNumIdx] === data.docNumber)) {
-      return response({ success: false, error: 'Document number already exists: ' + data.docNumber });
-    }
-    docNumber = data.docNumber;
-    
-    // Synchronize counter if manual number matches the YYMM-XXX format
-    const match = docNumber.match(/^(\d{4})-(\d{3,})$/);
-    if (match) {
-      const now = new Date();
-      const year = now.getFullYear().toString().substr(-2);
-      const m = (now.getMonth() + 1).toString().padStart(2, '0');
-      const currentMonthKey = year + m;
-      
-      const overrideMonth = match[1];
-      const overrideCounter = parseInt(match[2], 10);
-      
-      if (overrideMonth === currentMonthKey) {
-        const configSheet = ss.getSheetByName(SHEETS.CONFIG);
-        const lastDocMonth = configSheet.getRange(2, 2).getValue();
-        const docCounter = parseInt(configSheet.getRange(3, 2).getValue(), 10) || 0;
-        
-        if (lastDocMonth != overrideMonth) {
-          configSheet.getRange(2, 2).setValue(overrideMonth);
-          configSheet.getRange(3, 2).setValue(overrideCounter);
-        } else if (overrideCounter > docCounter) {
-          configSheet.getRange(3, 2).setValue(overrideCounter);
-        }
-      }
+  let docNumber = data.docNumber;
+  const docRows = docSheet.getDataRange().getValues();
+  const headers = docRows[0].map(h => h.toString().trim().toLowerCase());
+  const idx = name => headers.indexOf(name.toLowerCase());
+
+  if (docNumber) {
+    const docNumIdx = idx('docnumber');
+    const existing = docRows.slice(1).some(r => r[docNumIdx] === docNumber && r[idx('docid')] !== data.id);
+    if (existing) {
+      return response({ success: false, error: 'Document number already exists: ' + docNumber });
     }
   } else {
     docNumber = generateDocNumber(data.type);
   }
-  
-  const docId = 'DOC-' + new Date().getTime();
 
-  // Save Header using mapping for robustness
-  const headers = docSheet.getRange(1, 1, 1, docSheet.getLastColumn()).getValues()[0].map(h => h.toString().trim().toLowerCase());
-  const idx = name => headers.indexOf(name.toLowerCase());
+  const docId = data.id || ('DOC-' + new Date().getTime());
   const row = new Array(headers.length).fill('');
 
   const mapping = {
@@ -322,40 +362,38 @@ function createDocument(data) {
     'customername': data.customerName,
     'totalamount': data.totalAmount,
     'status': data.status,
-    'notes': data.notes,
-    'createdat': new Date().toISOString(),
-    'billingaddress': data.billingAddress,
-    'billingphone': data.billingPhone,
-    'billingemail': data.billingEmail,
-    'shippingname': data.shippingName,
-    'shippingaddress': data.shippingAddress,
-    'shippingphone': data.shippingPhone
+    'notes': data.notes || '',
+    'createdat': data.createdAt || new Date().toISOString(),
+    'billingaddress': data.billingAddress || '',
+    'billingphone': data.billingPhone || '',
+    'billingemail': data.billingEmail || '',
+    'shippingname': data.shippingName || '',
+    'shippingaddress': data.shippingAddress || '',
+    'shippingphone': data.shippingPhone || '',
+    'deliveryfee': data.deliveryFee || 0,
+    'isfreedelivery': data.isFreeDelivery ? true : false
   };
 
   Object.keys(mapping).forEach(key => {
     const colIdx = idx(key);
-    if (colIdx !== -1) {
-      row[colIdx] = mapping[key];
-    }
+    if (colIdx !== -1) row[colIdx] = mapping[key];
   });
 
   docSheet.appendRow(row);
 
-  // Save Items
-  const items = data.items.map(item => [
-    'ITEM-' + Math.random().toString(36).substr(2, 9),
-    docId,
-    item.description,
-    item.quantity,
-    item.unitPrice,
-    item.amount
-  ]);
-
-  if (items.length > 0) {
+  // Batch insert line items
+  if (data.items && data.items.length > 0) {
+    const items = data.items.map(item => [
+      item.id || ('ITEM-' + Math.random().toString(36).substr(2, 9)),
+      docId,
+      item.description,
+      item.quantity,
+      item.unitPrice,
+      item.amount
+    ]);
     itemSheet.getRange(itemSheet.getLastRow() + 1, 1, items.length, items[0].length).setValues(items);
   }
 
-  // Master Record Sync
   if (data.syncToMaster && data.customerId && !data.customerId.startsWith('TEMP-')) {
     updateCustomer({
       id: data.customerId,
@@ -378,25 +416,27 @@ function updateDocument(data) {
   const itemSheet = ss.getSheetByName(SHEETS.LINE_ITEMS);
 
   const docId = data.id;
-  if (!docId) return response({ success: false, error: 'Document ID is required for updating' });
+  if (!docId) return response({ success: false, error: 'Document ID is required' });
 
-  // 1. Find and Update Document Header
   const docRows = docSheet.getDataRange().getValues();
-  const headers = docRows.shift().map(h => h.toString().trim().toLowerCase());
+  if (docRows.length <= 1) return response({ success: false, error: 'Document not found' });
+
+  const headers = docRows[0].map(h => h.toString().trim().toLowerCase());
   const idx = name => headers.indexOf(name.toLowerCase());
-  
+  const idColIdx = idx('docid');
+
   let rowIndex = -1;
-  const docIdColIdx = idx('docid');
-  
-  for (let i = 0; i < docRows.length; i++) {
-    if (docRows[i][docIdColIdx] === docId) {
-      rowIndex = i + 2; // +1 for shift, +1 for 1-indexing
+  for (let i = 1; i < docRows.length; i++) {
+    if (docRows[i][idColIdx] === docId) {
+      rowIndex = i + 1;
       break;
     }
   }
 
   if (rowIndex === -1) return response({ success: false, error: 'Document not found' });
 
+  // Update target row array in memory for batch update
+  const targetRow = docRows[rowIndex - 1];
   const mapping = {
     'docnumber': data.docNumber,
     'type': data.type,
@@ -405,46 +445,46 @@ function updateDocument(data) {
     'customername': data.customerName,
     'totalamount': data.totalAmount,
     'status': data.status,
-    'notes': data.notes,
-    'billingaddress': data.billingAddress,
-    'billingphone': data.billingPhone,
-    'billingemail': data.billingEmail,
-    'shippingname': data.shippingName,
-    'shippingaddress': data.shippingAddress,
-    'shippingphone': data.shippingPhone
+    'notes': data.notes || '',
+    'billingaddress': data.billingAddress || '',
+    'billingphone': data.billingPhone || '',
+    'billingemail': data.billingEmail || '',
+    'shippingname': data.shippingName || '',
+    'shippingaddress': data.shippingAddress || '',
+    'shippingphone': data.shippingPhone || '',
+    'deliveryfee': data.deliveryFee || 0,
+    'isfreedelivery': data.isFreeDelivery ? true : false
   };
 
   Object.keys(mapping).forEach(key => {
     const colIdx = idx(key);
     if (colIdx !== -1 && mapping[key] !== undefined) {
-      docSheet.getRange(rowIndex, colIdx + 1).setValue(mapping[key]);
+      targetRow[colIdx] = mapping[key];
     }
   });
 
-  // 2. Sync Line Items (Delete existing and add new)
+  docSheet.getRange(rowIndex, 1, 1, targetRow.length).setValues([targetRow]);
+
+  // Sync Line Items (delete existing and insert new batch)
   const itemData = itemSheet.getDataRange().getValues();
-  const itemsToDelete = [];
   for (let i = itemData.length - 1; i >= 1; i--) {
     if (itemData[i][1] === docId) {
-      itemsToDelete.push(i + 1);
+      itemSheet.deleteRow(i + 1);
     }
   }
-  itemsToDelete.forEach(idx => itemSheet.deleteRow(idx));
 
-  const newItems = data.items.map(item => [
-    'ITEM-' + Math.random().toString(36).substr(2, 9),
-    docId,
-    item.description,
-    item.quantity,
-    item.unitPrice,
-    item.amount
-  ]);
-
-  if (newItems.length > 0) {
+  if (data.items && data.items.length > 0) {
+    const newItems = data.items.map(item => [
+      item.id || ('ITEM-' + Math.random().toString(36).substr(2, 9)),
+      docId,
+      item.description,
+      item.quantity,
+      item.unitPrice,
+      item.amount
+    ]);
     itemSheet.getRange(itemSheet.getLastRow() + 1, 1, newItems.length, newItems[0].length).setValues(newItems);
   }
 
-  // Master Record Sync
   if (data.syncToMaster && data.customerId) {
     updateCustomer({
       id: data.customerId,
@@ -461,237 +501,85 @@ function updateDocument(data) {
   return response({ success: true, docId: docId, docNumber: data.docNumber });
 }
 
-function getDocuments() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.DOCUMENTS);
-  const data = sheet.getDataRange().getValues();
-  const headers = data.shift().map(h => h.toString().trim().toLowerCase());
-  const idx = name => headers.indexOf(name.toLowerCase());
-
-  const docs = data.map(row => ({
-    id: row[idx('DocID')],
-    docNumber: row[idx('DocNumber')],
-    type: row[idx('Type')],
-    date: row[idx('Date')],
-    customerId: row[idx('CustomerID')],
-    customerName: row[idx('CustomerName')],
-    totalAmount: row[idx('TotalAmount')],
-    status: row[idx('Status')]
-  })).reverse(); // Newest first
-
-  return response({ success: true, data: docs });
-}
-
-function getDocument(docId) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const docSheet = ss.getSheetByName(SHEETS.DOCUMENTS);
-  const itemSheet = ss.getSheetByName(SHEETS.LINE_ITEMS);
-
-  // Find Doc
-  const docData = docSheet.getDataRange().getValues();
-  docData.shift();
-  const docRow = docData.find(row => row[0] === docId);
-
-  if (!docRow) return response({ error: 'Document not found' });
-
-  const headersRow = docSheet.getRange(1, 1, 1, docSheet.getLastColumn()).getValues()[0];
-  const headers = headersRow.map(h => h.toString().trim().toLowerCase());
-  const idx = name => {
-    const i = headers.indexOf(name.toLowerCase());
-    if (i === -1) {
-      console.error('Column NOT FOUND in headers: ' + name + '. Headers are: ' + JSON.stringify(headers));
-    }
-    return i;
-  };
-
-  const doc = {
-    id: docRow[idx('DocID')],
-    docNumber: docRow[idx('DocNumber')],
-    type: docRow[idx('Type')],
-    date: docRow[idx('Date')],
-    customerId: docRow[idx('CustomerID')],
-    customerName: docRow[idx('CustomerName')],
-    totalAmount: docRow[idx('TotalAmount')],
-    status: docRow[idx('Status')],
-    notes: docRow[idx('Notes')],
-    billingAddress: idx('BillingAddress') !== -1 ? (docRow[idx('BillingAddress')] || '') : '',
-    billingPhone: idx('BillingPhone') !== -1 ? (docRow[idx('BillingPhone')] || '') : '',
-    billingEmail: idx('BillingEmail') !== -1 ? (docRow[idx('BillingEmail')] || '') : '',
-    shippingName: idx('ShippingName') !== -1 ? (docRow[idx('ShippingName')] || '') : '',
-    shippingAddress: idx('ShippingAddress') !== -1 ? (docRow[idx('ShippingAddress')] || '') : '',
-    shippingPhone: idx('ShippingPhone') !== -1 ? (docRow[idx('ShippingPhone')] || '') : ''
-  };
-
-  // Find Items
-  const itemData = itemSheet.getDataRange().getValues();
-  itemData.shift();
-  const items = itemData
-    .filter(row => row[1] === docId)
-    .map(row => ({
-      id: row[0],
-      description: row[2],
-      quantity: row[3],
-      unitPrice: row[4],
-      amount: row[5]
-    }));
-
-  return response({ success: true, data: { ...doc, items } });
-}
-
 function deleteDocument(docId) {
+  if (!docId) return response({ success: false, error: 'Document ID is required' });
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const docSheet = ss.getSheetByName(SHEETS.DOCUMENTS);
   const itemSheet = ss.getSheetByName(SHEETS.LINE_ITEMS);
 
-  // Find and delete document row
   const docData = docSheet.getDataRange().getValues();
   let docRowIndex = -1;
   for (let i = 1; i < docData.length; i++) {
     if (docData[i][0] === docId) {
-      docRowIndex = i + 1; // +1 because spreadsheet rows are 1-indexed
+      docRowIndex = i + 1;
       break;
     }
   }
 
-  if (docRowIndex === -1) {
-    return response({ success: false, error: 'Document not found' });
-  }
+  if (docRowIndex === -1) return response({ success: false, error: 'Document not found' });
 
-  // Delete document row
   docSheet.deleteRow(docRowIndex);
 
-  // Find and delete all associated line items
+  // Delete line items
   const itemData = itemSheet.getDataRange().getValues();
-  const rowsToDelete = [];
   for (let i = itemData.length - 1; i >= 1; i--) {
     if (itemData[i][1] === docId) {
-      rowsToDelete.push(i + 1); // +1 because spreadsheet rows are 1-indexed
+      itemSheet.deleteRow(i + 1);
     }
   }
-
-  // Delete from bottom to top to maintain correct indices
-  rowsToDelete.forEach(rowIndex => {
-    itemSheet.deleteRow(rowIndex);
-  });
 
   return response({ success: true });
 }
 
-/**
- * ONE-TIME MIGRATION SCRIPT
- * Run this once after updating Code.js to backfill addresses for existing documents.
- */
-function migrateExistingDocuments() {
+function recoverDocument(docId) {
+  // Soft-recovery handler if document is marked inactive
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const docSheet = ss.getSheetByName(SHEETS.DOCUMENTS);
-  const custSheet = ss.getSheetByName(SHEETS.CUSTOMERS);
-
   const docData = docSheet.getDataRange().getValues();
-  const headers = docData.shift();
 
-  const custData = custSheet.getDataRange().getValues();
-  custData.shift();
-  const custMap = new Map(custData.map(row => [row[0], {
-    name: row[1],
-    phone: row[2],
-    address: row[3],
-    email: row[4]
-  }]));
+  for (let i = 1; i < docData.length; i++) {
+    if (docData[i][0] === docId) {
+      docSheet.getRange(i + 1, 8).setValue('DRAFT'); // Status column
+      return response({ success: true });
+    }
+  }
+  return response({ success: false, error: 'Document not found' });
+}
 
-  const billingAddrIdx = headers.indexOf('BillingAddress');
-  const billingPhoneIdx = headers.indexOf('BillingPhone');
-  const billingEmailIdx = headers.indexOf('BillingEmail');
-  const shippingNameIdx = headers.indexOf('ShippingName');
-  const shippingAddrIdx = headers.indexOf('ShippingAddress');
-  const shippingPhoneIdx = headers.indexOf('ShippingPhone');
+function getItemSuggestions() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.LINE_ITEMS);
+  if (!sheet) return response({ success: true, data: [] });
 
-  if (billingAddrIdx === -1) return "Error: Run setup() first to add columns.";
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return response({ success: true, data: [] });
 
-  docData.forEach((row, i) => {
-    const customerId = row[4];
-    const customer = custMap.get(customerId);
+  data.shift();
+  const deliveryKeywords = ['delivery', 'delivery fee', 'free delivery', 'shipping', 'shipping fee'];
+  const itemMap = new Map();
 
-    if (customer) {
-      const rowIndex = i + 2; // 1-indexed + header
+  data.forEach(row => {
+    if (!row || row.length < 5) return;
+    const description = row[2];
+    const unitPrice = row[4];
 
-      // Only fill if empty to avoid overwriting manually corrected data
-      if (!row[billingAddrIdx]) docSheet.getRange(rowIndex, billingAddrIdx + 1).setValue(customer.address);
-      if (!row[billingPhoneIdx]) docSheet.getRange(rowIndex, billingPhoneIdx + 1).setValue(customer.phone);
-      if (!row[billingEmailIdx]) docSheet.getRange(rowIndex, billingEmailIdx + 1).setValue(customer.email);
-      if (!row[shippingNameIdx]) docSheet.getRange(rowIndex, shippingNameIdx + 1).setValue(customer.name);
-      if (!row[shippingAddrIdx]) docSheet.getRange(rowIndex, shippingAddrIdx + 1).setValue(customer.address);
-      if (!row[shippingPhoneIdx]) docSheet.getRange(rowIndex, shippingPhoneIdx + 1).setValue(customer.phone);
+    if (!description || String(description).trim() === '') return;
+    const lower = String(description).toLowerCase().trim();
+    if (deliveryKeywords.some(keyword => lower.includes(keyword))) return;
+
+    if (!itemMap.has(description)) {
+      itemMap.set(description, {
+        description: String(description).trim(),
+        price: unitPrice && !isNaN(unitPrice) ? Number(unitPrice) : 0
+      });
     }
   });
 
-  return "Migration completed successfully.";
-}
-
-// --- Helper Functions ---
-
-function getItemSuggestions() {
-  try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.LINE_ITEMS);
-    if (!sheet) {
-      return response({ success: false, error: 'LineItems sheet not found' });
-    }
-
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      // Only header row or empty sheet
-      return response({ success: true, data: [] });
-    }
-
-    data.shift(); // Remove header row
-
-    // Column structure: [ItemID, DocID, Description, Quantity, UnitPrice, Amount]
-    // Index:             0       1      2            3         4          5
-    // Get unique descriptions with their first price found, excluding delivery-related items
-    const deliveryKeywords = ['delivery', 'delivery fee', 'free delivery', 'shipping', 'shipping fee'];
-
-    // Map to store description -> price (first price found for each description)
-    const itemMap = new Map();
-
-    data.forEach(row => {
-      if (!row || row.length < 5) return;
-
-      const description = row[2]; // Column C
-      const unitPrice = row[4];   // Column E (UnitPrice)
-
-      // Filter out null, undefined, empty strings
-      if (!description || (typeof description === 'string' && description.trim() === '')) return;
-
-      const lower = String(description).toLowerCase().trim();
-      // Exclude if contains delivery keywords
-      if (deliveryKeywords.some(keyword => lower.includes(keyword))) return;
-
-      // Store first price found for this description
-      if (!itemMap.has(description)) {
-        itemMap.set(description, {
-          description: String(description).trim(),
-          price: unitPrice && !isNaN(unitPrice) ? Number(unitPrice) : 0
-        });
-      }
-    });
-
-    // Convert map to array
-    const items = Array.from(itemMap.values());
-
-    return response({ success: true, data: items });
-  } catch (error) {
-    return response({ success: false, error: error.toString() });
-  }
+  return response({ success: true, data: Array.from(itemMap.values()) });
 }
 
 function generateDocNumber(type) {
   const result = getNextDocNumberInternal();
-  
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const configSheet = ss.getSheetByName(SHEETS.CONFIG);
-  
-  // Update state
-  configSheet.getRange(2, 2).setValue(result.monthKey);
-  configSheet.getRange(3, 2).setValue(result.counter);
-  
   return result.docNumber;
 }
 
@@ -702,36 +590,63 @@ function getNextDocNumber() {
 
 function getNextDocNumberInternal() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const configSheet = ss.getSheetByName(SHEETS.CONFIG);
-  const data = configSheet.getDataRange().getValues();
+  const docSheet = ss.getSheetByName(SHEETS.DOCUMENTS);
+  const data = docSheet.getDataRange().getValues();
 
-  // Find current month/counter
   const now = new Date();
   const year = now.getFullYear().toString().substr(-2);
   const month = (now.getMonth() + 1).toString().padStart(2, '0');
-  const monthKey = year + month;
+  const prefix = `${year}${month}-`;
 
-  let lastDocMonth = data[1][1];
-  let docCounter = parseInt(data[2][1]);
+  let maxCounter = 0;
 
-  if (lastDocMonth != monthKey) {
-    docCounter = 1;
-  } else {
-    docCounter++;
+  if (data.length > 1) {
+    const headers = data[0].map(h => h.toString().trim().toLowerCase());
+    const docNumIdx = headers.indexOf('docnumber');
+    const statusIdx = headers.indexOf('status');
+
+    if (docNumIdx !== -1) {
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (statusIdx !== -1 && row[statusIdx] === 'INACTIVE') continue;
+        const docNum = String(row[docNumIdx] || '');
+        if (docNum.startsWith(prefix)) {
+          const parts = docNum.split('-');
+          if (parts.length >= 2) {
+            const num = parseInt(parts[1], 10);
+            if (!isNaN(num) && num > maxCounter) {
+              maxCounter = num;
+            }
+          }
+        }
+      }
+    }
   }
 
-  const paddedCount = docCounter.toString().padStart(3, '0');
+  const nextCounter = maxCounter + 1;
+  const paddedCount = nextCounter.toString().padStart(3, '0');
+  const docNumber = `${prefix}${paddedCount}`;
+
   return {
-    docNumber: `${monthKey}-${paddedCount}`,
-    counter: docCounter,
-    monthKey: monthKey
+    docNumber: docNumber,
+    counter: nextCounter,
+    monthKey: `${year}${month}`
   };
+}
+
+
+function clearAllData() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  [SHEETS.CUSTOMERS, SHEETS.DOCUMENTS, SHEETS.LINE_ITEMS].forEach(sheetName => {
+    const sheet = ss.getSheetByName(sheetName);
+    if (sheet && sheet.getLastRow() > 1) {
+      sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
+    }
+  });
+  return response({ success: true, message: 'All data cleared successfully' });
 }
 
 function response(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
-
-
-

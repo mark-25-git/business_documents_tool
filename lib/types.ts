@@ -40,6 +40,8 @@ export type InvoiceDocument = {
   shippingName?: string;
   shippingAddress?: string;
   shippingPhone?: string;
+  deliveryFee?: number;
+  isFreeDelivery?: boolean;
   items?: LineItem[];
 };
 
@@ -47,7 +49,7 @@ export type CreateDocumentPayload = {
   type: DocumentType;
   date: string;
   customerId: string;
-  customerName: string; // Denormalized for easier display
+  customerName: string;
   totalAmount: number;
   status: string;
   notes?: string;
@@ -57,6 +59,8 @@ export type CreateDocumentPayload = {
   shippingName: string;
   shippingAddress: string;
   shippingPhone: string;
+  deliveryFee?: number;
+  isFreeDelivery?: boolean;
   items: LineItem[];
   docNumber?: string;
   syncToMaster?: boolean;

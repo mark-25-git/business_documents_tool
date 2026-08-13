@@ -203,17 +203,15 @@ function InvoiceEditor() {
         const docItems = fullDoc.items || [];
         const taxIdx = docItems.findIndex(i => i.description.startsWith('TAX:'));
         const itemsWithoutTax = docItems.filter(i => !i.description.startsWith('TAX:'));
-        const deliveryIdx = itemsWithoutTax.findIndex(i =>
-          i.description.toLowerCase().includes('delivery') ||
-          i.description.toLowerCase().includes('shipping fee')
-        );
-        const baseItemsList = itemsWithoutTax.filter((_, idx) => idx !== deliveryIdx);
-        const finalItems: LineItem[] = baseItemsList.length > 0 ? baseItemsList : [{ description: "", quantity: 1, unitPrice: 0, amount: 0 }];
+        const finalItems: LineItem[] = itemsWithoutTax.length > 0 ? itemsWithoutTax : [{ description: "", quantity: 1, unitPrice: 0, amount: 0 }];
         
         const hasUniqueShipping =
           (fullDoc.shippingName && fullDoc.shippingName !== fullDoc.customerName) ||
           (fullDoc.shippingAddress && fullDoc.shippingAddress !== fullDoc.billingAddress) ||
           (fullDoc.shippingPhone && fullDoc.shippingPhone !== fullDoc.billingPhone);
+
+        const loadedDeliveryFee = fullDoc.deliveryFee || 0;
+        const loadedIsFreeDelivery = !!fullDoc.isFreeDelivery;
 
         setOriginalDocId(fullDoc.id);
         setInitialDocData({
@@ -232,8 +230,8 @@ function InvoiceEditor() {
           isTaxEnabled: taxIdx !== -1,
           taxTitle: taxIdx !== -1 ? docItems[taxIdx].description.replace('TAX:', '') : "SST 10%",
           taxAmount: taxIdx !== -1 ? docItems[taxIdx].amount : 0,
-          deliveryFee: deliveryIdx !== -1 ? itemsWithoutTax[deliveryIdx].amount : 0,
-          isFreeDelivery: deliveryIdx !== -1 && itemsWithoutTax[deliveryIdx].description.toLowerCase().includes('free'),
+          deliveryFee: loadedDeliveryFee,
+          isFreeDelivery: loadedIsFreeDelivery,
           status: fullDoc.status,
           revisedSuffix: parsedDocNum.suffix
         });
@@ -269,6 +267,8 @@ function InvoiceEditor() {
         setIsDifferentShipping(!!hasUniqueShipping);
 
         setItems(finalItems);
+        setIsFreeDelivery(loadedIsFreeDelivery);
+        setDeliveryFee(loadedDeliveryFee);
         
         if (taxIdx !== -1) {
           setIsTaxEnabled(true);
@@ -277,20 +277,6 @@ function InvoiceEditor() {
           setIsTaxManuallyEdited(true);
         } else {
           setIsTaxEnabled(false);
-        }
-
-        if (deliveryIdx !== -1) {
-          const delItem = itemsWithoutTax[deliveryIdx];
-          if (delItem.description.toLowerCase().includes('free')) {
-            setIsFreeDelivery(true);
-            setDeliveryFee(0);
-          } else {
-            setIsFreeDelivery(false);
-            setDeliveryFee(delItem.amount);
-          }
-        } else {
-          setIsFreeDelivery(false);
-          setDeliveryFee(0);
         }
       }
     } catch (err) {
@@ -474,9 +460,9 @@ function InvoiceEditor() {
   const getPayload = async (customerIdOverride?: string): Promise<{ success: boolean; data?: CreateDocumentPayload; error?: string }> => {
     if (!selectedCustomer) return { success: false, error: "No customer selected" };
     const resolvedCustomerId = customerIdOverride ?? selectedCustomer.id;
-    const allItems = [...previewItems];
+    const itemsToSave = [...baseItems];
     if (isTaxEnabled) {
-      allItems.push({ description: `TAX:${taxTitle}`, quantity: 1, unitPrice: taxAmount, amount: taxAmount });
+      itemsToSave.push({ description: `TAX:${taxTitle}`, quantity: 1, unitPrice: taxAmount, amount: taxAmount });
     }
     return {
       success: true,
@@ -494,7 +480,9 @@ function InvoiceEditor() {
         shippingName: isDifferentShipping ? shippingName : selectedCustomer.name,
         shippingAddress: isDifferentShipping ? shippingAddress : (billingAddress || selectedCustomer.address || ""),
         shippingPhone: isDifferentShipping ? shippingPhone : (billingPhone || selectedCustomer.phone || ""),
-        items: allItems.filter(i => i.description.trim() !== ''),
+        deliveryFee: isFreeDelivery ? 0 : deliveryFee,
+        isFreeDelivery: isFreeDelivery,
+        items: itemsToSave,
         docNumber: (editableDocNumber.trim() + (revisedSuffix ? " " + revisedSuffix.trim() : "")).trim() || undefined,
         syncToMaster: syncToMaster
       }
