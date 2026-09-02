@@ -246,7 +246,8 @@ function deleteCustomer(customerId) {
 }
 
 function getDocuments() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.DOCUMENTS);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEETS.DOCUMENTS);
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return response({ success: true, data: [] });
 
@@ -257,7 +258,7 @@ function getDocuments() {
     id: row[idx('docid')],
     docNumber: row[idx('docnumber')],
     type: row[idx('type')],
-    date: row[idx('date')],
+    date: formatSheetDate(row[idx('date')], ss),
     customerId: row[idx('customerid')],
     customerName: row[idx('customername')],
     totalAmount: Number(row[idx('totalamount')] || 0),
@@ -297,7 +298,7 @@ function getDocument(docId) {
     id: docRow[idx('docid')],
     docNumber: docRow[idx('docnumber')],
     type: docRow[idx('type')],
-    date: docRow[idx('date')],
+    date: formatSheetDate(docRow[idx('date')], ss),
     customerId: docRow[idx('customerid')],
     customerName: docRow[idx('customername')],
     totalAmount: Number(docRow[idx('totalamount')] || 0),
@@ -357,7 +358,7 @@ function createDocument(data) {
     'docid': docId,
     'docnumber': docNumber,
     'type': data.type,
-    'date': data.date,
+    'date': data.date ? formatSheetDate(data.date, ss) : '',
     'customerid': data.customerId,
     'customername': data.customerName,
     'totalamount': data.totalAmount,
@@ -440,7 +441,7 @@ function updateDocument(data) {
   const mapping = {
     'docnumber': data.docNumber,
     'type': data.type,
-    'date': data.date,
+    'date': data.date ? formatSheetDate(data.date, ss) : '',
     'customerid': data.customerId,
     'customername': data.customerName,
     'totalamount': data.totalAmount,
@@ -644,6 +645,31 @@ function clearAllData() {
     }
   });
   return response({ success: true, message: 'All data cleared successfully' });
+}
+
+function formatSheetDate(val, ss) {
+  try {
+    if (!val) return '';
+    if (val instanceof Date) {
+      const tz = (ss && ss.getSpreadsheetTimeZone()) || Session.getScriptTimeZone() || 'Asia/Kuala_Lumpur';
+      return Utilities.formatDate(val, tz, 'yyyy-MM-dd');
+    }
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (trimmed.includes('T')) {
+        const d = new Date(trimmed);
+        if (!isNaN(d.getTime())) {
+          const tz = (ss && ss.getSpreadsheetTimeZone()) || Session.getScriptTimeZone() || 'Asia/Kuala_Lumpur';
+          return Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+        }
+        return trimmed.split('T')[0];
+      }
+      return trimmed;
+    }
+    return String(val);
+  } catch (err) {
+    return val ? String(val) : '';
+  }
 }
 
 function response(data) {

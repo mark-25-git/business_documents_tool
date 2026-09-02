@@ -9,3 +9,10 @@
 - **Problem**: Standard `Input` fields in both the standard and simple document forms were truncating long product descriptions.
 - **Root Cause**: HTML `<input type="text">` is single-line by design.
 - **Solution**: Created a reusable `Textarea` component matching the project's styling and updated all document creation and viewing forms to use it for descriptions. Ensured `@react-pdf/renderer` logic correctly handles text wrapping for these multiline strings in the final PDF.
+
+## 1-Day Date Offset Between Google Sheets and PDF
+- **Problem**: The document issue date displayed in the PDF and form editor was 1 day earlier than the date saved in Google Sheets.
+- **Root Cause**: Google Apps Script auto-serializes spreadsheet Date cells into UTC ISO timestamps (converting midnight GMT+8 into 16:00 UTC of the previous day).
+- **Solution**: Updated Google Apps Script (`Code.js`) with `formatSheetDate()` to format date cells directly in the spreadsheet's local timezone (`Asia/Kuala_Lumpur`) via `Utilities.formatDate` into `YYYY-MM-DD` strings before returning JSON.
+
+
