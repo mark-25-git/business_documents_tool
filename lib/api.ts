@@ -42,9 +42,10 @@ async function fetchGasApi<T>(
   }
 }
 
-export async function getCustomers(): Promise<Customer[]> {
+export async function getCustomers(strict = false): Promise<Customer[]> {
   try {
     const result = await fetchGasApi<{ success: boolean; data: any[] }>("getCustomers");
+    if (strict && (!result?.success || !Array.isArray(result.data))) throw new Error("Could not load customers. Check your connection and retry.");
     if (!result || !result.success || !Array.isArray(result.data)) {
       return [];
     }
@@ -65,6 +66,7 @@ export async function getCustomers(): Promise<Customer[]> {
     }));
   } catch (error) {
     console.error("Failed to fetch customers:", error);
+    if (strict) throw error;
     return [];
   }
 }
@@ -105,9 +107,10 @@ export async function updateCustomer(data: Customer) {
   }
 }
 
-export async function getDocuments(): Promise<InvoiceDocument[]> {
+export async function getDocuments(strict = false): Promise<InvoiceDocument[]> {
   try {
     const result = await fetchGasApi<{ success: boolean; data: any[] }>("getDocuments");
+    if (strict && (!result?.success || !Array.isArray(result.data))) throw new Error("Could not load documents. Check your connection and retry.");
     if (!result || !result.success || !Array.isArray(result.data)) {
       return [];
     }
@@ -126,6 +129,7 @@ export async function getDocuments(): Promise<InvoiceDocument[]> {
     }));
   } catch (error) {
     console.error("Failed to fetch documents:", error);
+    if (strict) throw error;
     return [];
   }
 }

@@ -1,23 +1,13 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
-
-export interface TextareaProps
-    extends React.TextareaHTMLAttributes<HTMLTextAreaElement> { }
-
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-    ({ className, ...props }, ref) => {
-        return (
-            <textarea
-                className={cn(
-                    "flex min-h-[80px] w-full rounded-md border border-gray-300 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                    className
-                )}
-                ref={ref}
-                {...props}
-            />
-        )
-    }
-)
-Textarea.displayName = "Textarea"
-
-export { Textarea }
+"use client";
+import * as React from "react";
+import { cn } from "@/lib/utils";
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> { label?: string; error?: string; }
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({ label, placeholder, error, className, id, ...props }, ref) {
+  const generated = React.useId();
+  const fieldId = id || generated;
+  return <div className={cn("field-wrap", className)}><div className={cn("floating-field textarea-field", error && "invalid")}>
+    <textarea {...props} id={fieldId} ref={ref} placeholder=" " aria-invalid={!!error}
+      aria-describedby={error ? `${fieldId}-help` : props["aria-describedby"]} />
+    <label htmlFor={fieldId}>{label || placeholder || "Description"}</label>
+  </div>{error && <p id={`${fieldId}-help`} className="field-error">{error}</p>}</div>;
+});
