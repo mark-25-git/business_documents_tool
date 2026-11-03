@@ -49,6 +49,14 @@ The system snapshots the specific addresses used at the moment of document creat
 2. Add `NEXT_PUBLIC_GAS_API_URL=YOUR_URL_HERE`.
 3. Run `npm install` followed by `npm run dev`.
 
+The active app uses Google Apps Script and Google Sheets only. Supabase,
+Telegram, and the associated AI assistant were removed on 3 November 2026.
+Use `.env.example` as the reference for required environment settings.
+Existing deployments need a redeploy to apply this removal; remote databases,
+bots, webhooks, and hosting environment variables are managed separately.
+
+Architecture changes are recorded in `docs/development-issue-pattern-log.md`.
+
 ## Data Dictionary (Documents Sheet)
 | Column Name | Description |
 | :--- | :--- |
