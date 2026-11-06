@@ -43,7 +43,7 @@ export function PdfCanvas({ url }: { url: string }) {
         const pdfPage = await document!.getPage(page);
         if (disposed || !canvas.current) return;
         const base = pdfPage.getViewport({ scale: 1 });
-        const viewport = pdfPage.getViewport({ scale: (width - 24) / base.width * zoom });
+        const viewport = pdfPage.getViewport({ scale: width / base.width * zoom });
         const ratio = Math.min(window.devicePixelRatio || 1, 2);
         canvas.current.width = Math.floor(viewport.width * ratio);
         canvas.current.height = Math.floor(viewport.height * ratio);

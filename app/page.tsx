@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { ArrowLeft, CheckCircle2, AlertCircle, XCircle, Info, MoreHorizontal, Plus, RotateCcw, X } from "lucide-react";
+import { ChevronLeft, CheckCircle2, AlertCircle, Eye, XCircle, Info, MoreHorizontal, Plus, RotateCcw, X } from "lucide-react";
 import { useDocumentEditor } from "@/components/use-document-editor";
 import { DocumentHome } from "@/components/document-home";
 import { DocumentEditorForm } from "@/components/document-editor-form";
@@ -33,36 +33,37 @@ function Workspace() {
     document.title = e.screen === "home" ? "Documents · Megah" : `${e.fullNumber || "New document"} · Megah`;
   }, [e.screen, e.fullNumber]);
   const isHome = e.screen === "home";
+  const isPreview = e.screen === "preview";
   const cancelled = ["CANCELLED", "INACTIVE"].includes(e.draft.status);
   const pending = !!e.busy || e.fetching;
   const title = e.id ? e.fullNumber : `New ${documentLabels[e.draft.type].toLowerCase()}`;
   return <div className="app-shell">
-    <header className="app-header"><div className="header-inner">
-      <button type="button" className="brand" onClick={() => e.navigate("home")} disabled={pending} aria-label="Megah documents home">
-        Megah
-      </button><span className="workspace-label">Invoice tool</span>
-    </div></header>
-    <main className={isHome ? "workspace home-workspace" : "workspace editor-workspace"}>
+    <main className={isHome ? "workspace home-workspace" : `workspace editor-workspace${isPreview ? " preview-workspace" : ""}`}>
       {e.feedback && <div className={`feedback feedback-${e.feedback.kind}`} role={e.feedback.kind === "error" ? "alert" : "status"}>
         {e.feedback.kind === "success" ? <CheckCircle2 size={20} /> : e.feedback.kind === "error" ? <XCircle size={20} /> : <Info size={20} />}
         <span>{e.feedback.text}</span><Button size="icon" variant="ghost" aria-label="Dismiss notification" onClick={() => e.setFeedback(null)}><X size={18} /></Button></div>}
       {e.fetching && <div role="status" className="fetch-status"><div className="loading-dot" />Opening document…</div>}
       <div hidden={!isHome}><DocumentHome editor={e} /></div>
       {!isHome && <>
-        <div className="editor-heading"><Button variant="ghost" onClick={() => e.navigate("home")} disabled={pending}><ArrowLeft size={18} />Documents</Button>
-          <Button variant="ghost" size="icon" aria-label="More document actions" disabled={pending} onClick={() => setMore(true)}><MoreHorizontal size={22} /></Button></div>
-        <div className="document-title"><h1>{title}</h1>{e.id && <p className="muted">{[documentLabels[e.draft.type], e.draft.billingName].filter(Boolean).join(" · ")}</p>}</div>
+        <header className="editor-heading toolbar">
+          <Button variant="ghost" size="icon" aria-label={isPreview ? "Back to editor" : "Back to Documents"}
+            onClick={() => isPreview ? e.navigate("edit", e.id) : e.navigate("home")} disabled={pending}><ChevronLeft size={23} /></Button>
+          <h1>{isPreview ? "Preview" : title}</h1>
+          {!isPreview && <div className="toolbar-actions">
+            <Button variant="ghost" size="icon" aria-label="Preview PDF" title="Preview PDF" onClick={() => e.navigate("preview", e.id)}><Eye size={20} /></Button>
+            <Button variant="ghost" size="icon" aria-label="More document actions" disabled={pending} onClick={() => setMore(true)}><MoreHorizontal size={22} /></Button>
+          </div>}
+        </header>
+        {!isPreview && e.id && <p className="document-subtitle muted">{[documentLabels[e.draft.type], e.draft.billingName].filter(Boolean).join(" · ")}</p>}
         {e.loadError && <div className="inline-warning"><AlertCircle size={18} /><span>{e.loadError}</span><Button variant="outline" onClick={e.reload}>Retry</Button></div>}
-        <nav className="view-switch" aria-label="Document views"><button type="button" aria-current={e.screen === "edit" ? "page" : undefined} onClick={() => e.navigate("edit", e.id)}>Edit document</button>
-          <button type="button" aria-current={e.screen === "preview" ? "page" : undefined} onClick={() => e.navigate("preview", e.id)}>Preview</button></nav>
-        <div className={`editor-layout ${e.screen === "preview" ? "preview-screen" : ""}`}>
-          <div className="editor-form-pane" hidden={e.screen === "preview" && !wide}><DocumentEditorForm editor={e} /></div>
-          {(e.screen === "preview" || wide) && <div className="preview-column"><Preview draft={e.draft} number={e.fullNumber} canDownload={!!e.id && !e.dirty && !e.duplicate && !pending} /></div>}
+        <div className={`editor-layout ${isPreview ? "preview-screen" : ""}`}>
+          <div className="editor-form-pane" hidden={isPreview}><DocumentEditorForm editor={e} /></div>
+          {(isPreview || wide) && <div className="preview-column"><Preview draft={e.draft} number={e.fullNumber} canDownload={!!e.id && !e.dirty && !e.duplicate && !pending} /></div>}
         </div>
-        <footer className="save-bar"><div className="save-bar-inner"><div className="save-total"><span>Total amount</span><strong>{money(e.totals.total)}</strong></div>
+        {!isPreview && <footer className="save-bar"><div className="save-bar-inner"><div className="save-total"><span>Total amount</span><strong>{money(e.totals.total)}</strong></div>
           <div className="save-actions">
             <Button type="submit" form="document-editor" busy={e.busy === "save"} busyLabel="Saving…" disabled={pending || (e.id !== null && !e.dirty)}>
-              {e.id ? "Save changes" : "Save document"}</Button></div></div></footer>
+              {e.id ? "Save changes" : "Save document"}</Button></div></div></footer>}
       </>}
     </main>
     <Sheet open={more} title="Document actions" onClose={() => setMore(false)} compact>

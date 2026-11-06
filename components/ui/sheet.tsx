@@ -3,8 +3,8 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { Button } from "./button";
 
-export function Sheet({ open, title, onClose, children, compact = false }: {
-  open: boolean; title: string; onClose: () => void; children: ReactNode; compact?: boolean;
+export function Sheet({ open, title, onClose, children, compact = false, headerAction, focusField = true }: {
+  open: boolean; title: string; onClose: () => void; children: ReactNode; compact?: boolean; headerAction?: ReactNode; focusField?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const close = useRef(onClose);
@@ -16,7 +16,7 @@ export function Sheet({ open, title, onClose, children, compact = false }: {
     const trigger = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
     dialog.showModal();
-    dialog.querySelector<HTMLInputElement>("input, textarea, select")?.focus();
+    if (focusField) dialog.querySelector<HTMLInputElement>("input, textarea, select")?.focus();
     document.body.style.overflow = "hidden";
     if (!compact) history.pushState({ ...history.state, megahLayer: titleId }, "");
     let ownsEntry = !compact;
@@ -29,12 +29,14 @@ export function Sheet({ open, title, onClose, children, compact = false }: {
       document.body.style.overflow = overflow;
       trigger?.focus();
     };
-  }, [open, titleId, compact]);
+  }, [open, titleId, compact, focusField]);
   return <dialog ref={ref} aria-labelledby={titleId} className={compact ? "sheet compact-sheet" : "sheet"}
     onCancel={event => { event.preventDefault(); onClose(); }}
     onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
     <div className="sheet-inner"><header className="sheet-header"><h2 id={titleId}>{title}</h2>
-      <Button variant="ghost" size="icon" aria-label={`Close ${title}`} onClick={onClose}><X size={20} /></Button></header>
+      <div className="toolbar-actions">{headerAction}
+        <Button variant="ghost" size="icon" aria-label={`Close ${title}`} onClick={onClose}><X size={20} /></Button>
+      </div></header>
       <div className="sheet-content">{children}</div>
     </div>
   </dialog>;

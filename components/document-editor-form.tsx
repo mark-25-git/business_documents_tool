@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2, User } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, MoreHorizontal, Plus, Trash2, User } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input, type InputProps } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Select } from "./ui/select";
+import { Sheet } from "./ui/sheet";
 import { CustomerSheet } from "./customer-sheet";
 import { documentLabels, emptyItem, money, type Draft } from "@/lib/document-model";
 import type { DocumentType } from "@/lib/types";
@@ -32,6 +33,7 @@ function Section({ title, children, id }: { title: string; children: React.React
 export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
   const [customerOpen, setCustomerOpen] = useState(false);
   const [suggestionsFor, setSuggestionsFor] = useState<number | null>(null);
+  const [itemActions, setItemActions] = useState<number | null>(null);
   const d = e.draft;
   const field = <K extends keyof Draft>(key: K) => (value: Draft[K]) => e.patch(key, value);
   const moveItem = (index: number, offset: -1 | 1) => {
@@ -43,8 +45,7 @@ export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
     e.patch("items", items);
     setSuggestionsFor(null);
 
-    const focusUp = destination === items.length - 1 || (offset === -1 && destination > 0);
-    requestAnimationFrame(() => document.getElementById(`move-item-${focusUp ? "up" : "down"}-${destination}`)?.focus());
+    requestAnimationFrame(() => document.getElementById(`item-actions-${destination}`)?.focus());
   };
   const profileChanges = d.customer ? [
     ["Name", d.customer.name, d.billingName],
@@ -92,7 +93,7 @@ export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
             </div></details>}
           </> : <button type="button" className="choose-customer" id="choose-customer" aria-invalid={!!e.errors.customer}
             aria-describedby={e.errors.customer ? "customer-error" : undefined} onClick={() => setCustomerOpen(true)}>
-            <span className="customer-avatar"><User size={22} /></span><span><strong>Choose a customer</strong><small>Search saved customers or add someone new</small></span><Plus size={20} /></button>}
+            <span className="customer-avatar"><User size={22} /></span><span><strong>Choose a customer</strong><small>Search saved customers or add someone new</small></span><ChevronRight size={20} aria-hidden="true" /></button>}
           {e.errors.customer && <p id="customer-error" className="field-error">{e.errors.customer}</p>}
         </Section>
         <Section title="Items" id="items-section">
@@ -113,14 +114,8 @@ export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
             return <div className="item-card" key={index}>
               <div className="item-heading">
                 <h3>Item {index + 1}</h3>
-                <div className="item-actions">
-                  <Button variant="ghost" size="icon" id={`move-item-up-${index}`} aria-label={`Move item ${index + 1} up`} title="Move item up"
-                    disabled={index === 0} onClick={() => moveItem(index, -1)}><ArrowUp size={18} /></Button>
-                  <Button variant="ghost" size="icon" id={`move-item-down-${index}`} aria-label={`Move item ${index + 1} down`} title="Move item down"
-                    disabled={index === d.items.length - 1} onClick={() => moveItem(index, 1)}><ArrowDown size={18} /></Button>
-                  <Button variant="ghost" size="icon" aria-label={`Remove item ${index + 1}`} disabled={d.items.length === 1}
-                    onClick={() => { e.patch("items", d.items.filter((_, i) => i !== index)); setSuggestionsFor(null); }}><Trash2 size={18} /></Button>
-                </div>
+                {d.items.length > 1 && <Button variant="ghost" size="icon" id={`item-actions-${index}`}
+                  aria-label={`Actions for item ${index + 1}`} aria-haspopup="dialog" onClick={() => setItemActions(index)}><MoreHorizontal size={22} /></Button>}
               </div>
               <div className="item-description"
                 onBlur={event => {
@@ -177,6 +172,18 @@ export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
         </Section>
       </fieldset>
     </form>
+    {itemActions !== null && <Sheet open title={`Item ${itemActions + 1} actions`} onClose={() => setItemActions(null)} compact>
+      <div className="item-action-list">
+        {itemActions > 0 && <Button variant="ghost" onClick={() => { moveItem(itemActions, -1); setItemActions(null); }}><ArrowUp size={18} />Move up</Button>}
+        {itemActions < d.items.length - 1 && <Button variant="ghost" onClick={() => { moveItem(itemActions, 1); setItemActions(null); }}><ArrowDown size={18} />Move down</Button>}
+        <Button variant="ghost" className="remove-item-action" onClick={() => {
+          e.patch("items", d.items.filter((_, index) => index !== itemActions));
+          setSuggestionsFor(null);
+          setItemActions(null);
+          requestAnimationFrame(() => document.getElementById(`description-${Math.min(itemActions, d.items.length - 2)}`)?.focus());
+        }}><Trash2 size={18} />Remove item</Button>
+      </div>
+    </Sheet>}
     <CustomerSheet open={customerOpen} onClose={() => setCustomerOpen(false)} editor={e} />
   </>;
 }
