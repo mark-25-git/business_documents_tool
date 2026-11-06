@@ -47,3 +47,13 @@ Exclude secrets, personal data, and routine cosmetic changes.
 - Evidence: Port 3000 returned HTML with the old status filter and a page script with the newer item controls. Port 3001 returned matching HTML and JavaScript. Both Next.js processes ran from this checkout and shared its default `.next` directory.
 - Resolution: Stopped the stale port 3000 process and kept the current server on port 3001. Run one dev server per checkout, or give separate servers separate build directories.
 - Verification: A fresh Documents load showed 39 records with no browser errors. The editor and PDF preview also opened cleanly.
+
+## 2026-11-06 — Native date field overflows on iPhone
+
+- Status: Fix implemented locally. Device verification pending.
+- Area: Shared floating-label date input.
+- Symptom and trigger: A populated date field on iPhone Safari appeared taller and wider than adjacent inputs, with its value centered. The native picker opened normally.
+- Evidence and cause: The shared field uses percentage width and padding. The iOS date appearance can apply content-box sizing and center the inner value. [WebKit reproduced the width issue with padded date inputs](https://bugs.webkit.org/show_bug.cgi?id=301648).
+- Solution: Reset the date field appearance, use border-box sizing, and align the inner value with the label. Keep the HTML date input so the browser provides the picker.
+- Verification: The populated field at 390px and the empty field at 320px both measured 58px high and matched their container widths in the desktop browser. TypeScript and document model tests passed.
+- Limitation: The browser checks used resized desktop Chromium. Confirm the rendering and picker on iPhone Safari.

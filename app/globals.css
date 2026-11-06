@@ -84,7 +84,18 @@ a { color: var(--blue); }
 .floating-field textarea { height: 96px; min-height: 96px; resize: vertical; padding-top: 25px; }
 .floating-field select { appearance: none; padding-right: 36px; }
 .select-field > svg { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted-text); }
-.floating-field input[type=date] { min-height: 58px; }
+/* iOS WebKit's native date appearance can size the content box before adding padding. */
+.floating-field input[type=date] {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  min-height: 58px;
+  text-align: start;
+}
+.floating-field input[type=date]::-webkit-date-and-time-value {
+  min-height: 24px;
+  text-align: start;
+}
 .floating-field.invalid input,.floating-field.invalid textarea { border-color: var(--error); }
 .field-error,.field-hint { font-size: 12px; margin-top: 6px; line-height: 1.5; }
 .field-error { color: var(--error); }
