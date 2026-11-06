@@ -39,3 +39,11 @@ Exclude secrets, personal data, and routine cosmetic changes.
 - Solution: Render the same exported PDF with PDF.js. Copy the exact installed worker into public assets during predev/prebuild so it is served unchanged and stays version matched.
 - Coverage: Visible canvas rendering, page controls, zoom, accessible page text, worker syntax checks, and production compilation.
 - Limitations: Old browser engines may need a separate compatibility pass. Native Open PDF and download links remain available.
+
+## 2026-11-06 — Hydration mismatch with two local Next.js servers
+
+- Status: Resolved locally.
+- Symptom: The Documents page reported a missing button during hydration.
+- Evidence: Port 3000 returned HTML with the old status filter and a page script with the newer item controls. Port 3001 returned matching HTML and JavaScript. Both Next.js processes ran from this checkout and shared its default `.next` directory.
+- Resolution: Stopped the stale port 3000 process and kept the current server on port 3001. Run one dev server per checkout, or give separate servers separate build directories.
+- Verification: A fresh Documents load showed 39 records with no browser errors. The editor and PDF preview also opened cleanly.
