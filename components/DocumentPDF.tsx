@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet, Font } from '@react-pdf/renderer';
+import invoiceLogo from '../public/invoice-logo.png';
 
 // Disable hyphenation so addresses wrap by whole words
 Font.registerHyphenationCallback(word => [word]);
@@ -15,11 +16,12 @@ Font.registerHyphenationCallback(word => [word]);
 // 2. Register them using Font.register() to force embedding
 // 3. Or use a free alternative like Liberation Sans with explicit embedding
 
-type PDFItem = {
+export type PDFItem = {
   description: string;
   quantity: number;
   unitPrice: number;
   amount?: number;
+  isFreeDeliveryCharge?: boolean;
 };
 
 type PDFCustomer = {
@@ -67,6 +69,22 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 24,
     lineHeight: 1.2,
+    position: 'relative',
+    paddingBottom: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#b0b0b0',
+  },
+  contact: {
+    flexDirection: 'row',
+    gap: 24,
+  },
+  logo: {
+    position: 'absolute',
+    top: 0,
+    right: -12,
+    width: 105,
+    height: 70.22,
+    objectFit: 'contain',
   },
   companyName: {
     fontSize: 22, // +10% and fits one line
@@ -154,8 +172,11 @@ const styles = StyleSheet.create({
     minHeight: 20,
   },
   colDescription: {
-    width: '50%', 
+    width: '43%',
     paddingRight: 8,
+  },
+  colSequence: {
+    width: '7%',
   },
   colQty: {
     width: '10%', 
@@ -314,6 +335,7 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
     0
   );
   const total = subtotal + (taxAmount || 0);
+  let itemNumber = 0;
 
   return (
     <Document>
@@ -328,7 +350,11 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
           <Text style={styles.companyName}>PERABOT MEGAH ENTERPRISE</Text>
           <Text style={styles.companyInfo}>NO. 202503044871 (JR0174054-W)</Text>
           <Text style={styles.companyInfo}>NO.12 , TAMAN PERDANA , JALAN BAKRI , 84000 MUAR, JOHOR.</Text>
-          <Text style={styles.companyInfo}>perabotmegah@gmail.com</Text>
+          <View style={styles.contact}>
+            <Text style={styles.companyInfo}>WA: 010-782 6933</Text>
+            <Text style={styles.companyInfo}>Email: perabotmegah@gmail.com</Text>
+          </View>
+          <Image src={invoiceLogo.src} style={styles.logo} />
         </View>
 
         {/* Document Type - sentence case */}
@@ -394,6 +420,9 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
         <View style={styles.itemsTable}>
           <View>
             <View style={styles.tableHeader} fixed>
+              <View style={styles.colSequence}>
+                <Text style={styles.headerText}>No.</Text>
+              </View>
               <View style={styles.colDescription}>
                 <Text style={styles.headerText}>Description</Text>
               </View>
@@ -433,8 +462,12 @@ export const DocumentPDF: React.FC<DocumentPDFProps> = ({
             ) : (
               items.map((item, idx) => {
                 const isFreeDel = item.description.toLowerCase().trim() === "free delivery";
+                const sequence = item.isFreeDeliveryCharge ? "" : `${++itemNumber}.`;
                 return (
                   <View key={idx} style={styles.tableRow} wrap={false}>
+                    <View style={styles.colSequence}>
+                      <Text style={styles.rowText}>{sequence}</Text>
+                    </View>
                     <View style={styles.colDescription}>
                       <Text style={styles.rowText}>{item.description}</Text>
                     </View>

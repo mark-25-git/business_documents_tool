@@ -2,7 +2,7 @@
 import { useEffect, useMemo } from "react";
 import { usePDF } from "@react-pdf/renderer";
 import { Download, ExternalLink } from "lucide-react";
-import { DocumentPDF } from "./DocumentPDF";
+import { DocumentPDF, type PDFItem } from "./DocumentPDF";
 import { PdfCanvas } from "./pdf-canvas";
 import { calculate, documentLabels, shipping, type Draft } from "@/lib/document-model";
 
@@ -10,8 +10,8 @@ export default function DocumentPreviewPane({ draft, number, canDownload }: { dr
   const document = useMemo(() => {
     const totals = calculate(draft);
     const ship = shipping(draft);
-    const items = [...totals.items];
-    if (draft.freeDelivery) items.push({ description: "Free Delivery", quantity: 1, unitPrice: 0, amount: 0 });
+    const items: PDFItem[] = [...totals.items];
+    if (draft.freeDelivery) items.push({ description: "Free Delivery", quantity: 1, unitPrice: 0, amount: 0, isFreeDeliveryCharge: true });
     else if (totals.delivery) items.push({ description: "Delivery Fee", quantity: 1, unitPrice: totals.delivery, amount: totals.delivery });
     return <DocumentPDF docType={documentLabels[draft.type].replace(/\b\w/g, c => c.toUpperCase())}
       docNumber={number || "Not assigned"} issueDate={draft.date}
