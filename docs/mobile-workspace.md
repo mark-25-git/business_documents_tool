@@ -1,6 +1,6 @@
 # Mobile document workspace
 
-The home screen lists documents with search, status filters, and document-type filtering.
+The home screen lists documents with search and document-type filtering.
 Open or create a document to edit customer details, items, delivery, and tax on one page.
 Phones switch between Edit and Preview. At 1024px and wider, the editor and preview appear together.
 
@@ -16,7 +16,7 @@ Phones switch between Edit and Preview. At 1024px and wider, the editor and prev
 
 ## PDF preview
 
-The existing React PDF document generates the PDF. Mozilla PDF.js draws that exact file into a canvas, with page navigation, zoom, and a text alternative.
+The existing React PDF document generates the PDF. Mozilla PDF.js draws that exact file into a canvas with page navigation and zoom.
 The implementation follows [Mozilla's canvas rendering example](https://mozilla.github.io/pdf.js/examples/).
 Open PDF and Download PDF use the same generated file.
 

@@ -18,7 +18,6 @@ export function PdfCanvas({ url }: { url: string }) {
   const [zoom, setZoom] = useState(1);
   const [rendering, setRendering] = useState(true);
   const [error, setError] = useState("");
-  const [text, setText] = useState("");
   useEffect(() => {
     const observer = new ResizeObserver(entries => setWidth(Math.floor(entries[0].contentRect.width)));
     observer.observe(container.current!);
@@ -38,7 +37,7 @@ export function PdfCanvas({ url }: { url: string }) {
     if (!document || !width) return;
     let disposed = false;
     let task: ReturnType<PDFPageProxy["render"]> | undefined;
-    setRendering(true); setText(""); setError("");
+    setRendering(true); setError("");
     async function render() {
       try {
         const pdfPage = await document!.getPage(page);
@@ -52,8 +51,6 @@ export function PdfCanvas({ url }: { url: string }) {
         canvas.current.style.height = `${viewport.height}px`;
         task = pdfPage.render({ canvas: canvas.current, viewport, transform: [ratio, 0, 0, ratio, 0, 0] });
         await task.promise;
-        const content = await pdfPage.getTextContent();
-        if (!disposed) setText(content.items.map(item => "str" in item ? item.str : "").join(" "));
       } catch (failure) {
         if (!disposed) console.error("PDF preview drawing failed:", failure);
         if (!disposed) setError("The preview could not be drawn. Use Open PDF above.");
@@ -74,8 +71,7 @@ export function PdfCanvas({ url }: { url: string }) {
     <div ref={container} className="pdf-canvas-scroll" aria-busy={rendering}>
       {rendering && <p className="pdf-rendering" role="status">Drawing page…</p>}
       {error && <p className="field-error" role="alert">{error}</p>}
-      <canvas ref={canvas} role="img" aria-label={`PDF page ${page}. Use Read page text below for its text content.`} />
+      <canvas ref={canvas} role="img" aria-label={`PDF page ${page}`} />
     </div>
-    {text && <details className="disclosure pdf-text"><summary>Read page text</summary><p>{text}</p></details>}
   </div>;
 }

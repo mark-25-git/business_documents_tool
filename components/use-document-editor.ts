@@ -58,7 +58,17 @@ export function useDocumentEditor() {
   const patch = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setHasDraft(true);
     setDraft(previous => ({ ...previous, [key]: value }));
-    setErrors(previous => { const next = { ...previous }; delete next[key]; return next; });
+    setErrors(previous => {
+      const next = { ...previous };
+      delete next[key];
+      if (key === "items") {
+        // Inserting, deleting or moving a row can change which item an error refers to.
+        for (const field of Object.keys(next)) {
+          if (/^(description|quantity|price)-\d+$/.test(field)) delete next[field];
+        }
+      }
+      return next;
+    });
   };
   const selectCustomer = (customer: Customer) => {
     setDraft(previous => chooseCustomer(previous, customer));

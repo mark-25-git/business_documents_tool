@@ -50,8 +50,7 @@ function Workspace() {
       <div hidden={!isHome}><DocumentHome editor={e} /></div>
       {!isHome && <>
         <div className="editor-heading"><Button variant="ghost" onClick={() => e.navigate("home")} disabled={pending}><ArrowLeft size={18} />Documents</Button>
-          <div className="editor-status"><span className={`status-badge ${cancelled ? "cancelled" : ""}`}>{cancelled ? "Cancelled" : e.id && !e.dirty ? "Saved" : "Unsaved"}</span>
-            <Button variant="ghost" size="icon" aria-label="More document actions" disabled={pending} onClick={() => setMore(true)}><MoreHorizontal size={22} /></Button></div></div>
+          <Button variant="ghost" size="icon" aria-label="More document actions" disabled={pending} onClick={() => setMore(true)}><MoreHorizontal size={22} /></Button></div>
         <div className="document-title"><h1>{title}</h1>{e.id && <p className="muted">{[documentLabels[e.draft.type], e.draft.billingName].filter(Boolean).join(" · ")}</p>}</div>
         {e.loadError && <div className="inline-warning"><AlertCircle size={18} /><span>{e.loadError}</span><Button variant="outline" onClick={e.reload}>Retry</Button></div>}
         <nav className="view-switch" aria-label="Document views"><button type="button" aria-current={e.screen === "edit" ? "page" : undefined} onClick={() => e.navigate("edit", e.id)}>Edit document</button>

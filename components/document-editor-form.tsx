@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Plus, Trash2, User } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2, User } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input, type InputProps } from "./ui/input";
 import { Textarea } from "./ui/textarea";
@@ -34,6 +34,18 @@ export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
   const [suggestionsFor, setSuggestionsFor] = useState<number | null>(null);
   const d = e.draft;
   const field = <K extends keyof Draft>(key: K) => (value: Draft[K]) => e.patch(key, value);
+  const moveItem = (index: number, offset: -1 | 1) => {
+    const destination = index + offset;
+    if (destination < 0 || destination >= d.items.length) return;
+
+    const items = [...d.items];
+    [items[index], items[destination]] = [items[destination], items[index]];
+    e.patch("items", items);
+    setSuggestionsFor(null);
+
+    const focusUp = destination === items.length - 1 || (offset === -1 && destination > 0);
+    requestAnimationFrame(() => document.getElementById(`move-item-${focusUp ? "up" : "down"}-${destination}`)?.focus());
+  };
   const profileChanges = d.customer ? [
     ["Name", d.customer.name, d.billingName],
     ["Billing address", d.customer.billingAddress || d.customer.address, d.billingAddress],
@@ -86,18 +98,56 @@ export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
         <Section title="Items" id="items-section">
           {e.errors.items && <p className="field-error" role="alert">{e.errors.items}</p>}
           {d.items.map((item, index) => {
-            const suggestions = e.suggestions.filter(s => !/delivery|shipping/i.test(s.description) &&
-              s.description.toLowerCase().includes(item.description.toLowerCase())).slice(0, 8);
+            const descriptionId = `description-${index}`;
+            const suggestionsId = `saved-items-${index}`;
+            const query = item.description.trim().toLowerCase();
+            const suggestions = e.suggestions.filter(suggestion => {
+              const description = suggestion.description.toLowerCase();
+              return !/delivery|shipping/.test(description) && (!query || (description.includes(query) && description !== query));
+            }).slice(0, 15);
+            const showSuggestions = suggestionsFor === index && suggestions.length > 0;
+            const closeSuggestions = () => {
+              document.getElementById(descriptionId)?.focus();
+              setSuggestionsFor(null);
+            };
             return <div className="item-card" key={index}>
-              <div className="item-heading"><h3>Item {index + 1}</h3><Button variant="ghost" size="icon" aria-label={`Remove item ${index + 1}`} disabled={d.items.length === 1}
-                onClick={() => { e.patch("items", d.items.filter((_, i) => i !== index)); setSuggestionsFor(null); }}><Trash2 size={18} /></Button></div>
-              <Textarea label="Description" id={`description-${index}`} value={item.description} error={e.errors[`description-${index}`]}
-                onChange={event => e.updateItem(index, { description: event.target.value })} />
-              {suggestions.length > 0 && <><button type="button" className="text-action" aria-expanded={suggestionsFor === index}
-                onClick={() => setSuggestionsFor(suggestionsFor === index ? null : index)}>Use a saved item<ChevronDown size={15} /></button>
-                {suggestionsFor === index && <div className="item-suggestions" aria-label="Saved items">{suggestions.map(s => <button type="button" key={s.description}
-                  onClick={() => { e.updateItem(index, { description: s.description, unitPrice: s.price }); setSuggestionsFor(null); }}>
-                  <span>{s.description}</span><strong>{money(s.price)}</strong></button>)}</div>}</>}
+              <div className="item-heading">
+                <h3>Item {index + 1}</h3>
+                <div className="item-actions">
+                  <Button variant="ghost" size="icon" id={`move-item-up-${index}`} aria-label={`Move item ${index + 1} up`} title="Move item up"
+                    disabled={index === 0} onClick={() => moveItem(index, -1)}><ArrowUp size={18} /></Button>
+                  <Button variant="ghost" size="icon" id={`move-item-down-${index}`} aria-label={`Move item ${index + 1} down`} title="Move item down"
+                    disabled={index === d.items.length - 1} onClick={() => moveItem(index, 1)}><ArrowDown size={18} /></Button>
+                  <Button variant="ghost" size="icon" aria-label={`Remove item ${index + 1}`} disabled={d.items.length === 1}
+                    onClick={() => { e.patch("items", d.items.filter((_, i) => i !== index)); setSuggestionsFor(null); }}><Trash2 size={18} /></Button>
+                </div>
+              </div>
+              <div className="item-description"
+                onBlur={event => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setSuggestionsFor(null);
+                }}
+                onKeyDown={event => {
+                  if (event.key === "Escape" && showSuggestions) {
+                    event.preventDefault();
+                    closeSuggestions();
+                  }
+                }}>
+                <Textarea label="Description" id={descriptionId} value={item.description} error={e.errors[descriptionId]}
+                  aria-controls={showSuggestions ? suggestionsId : undefined}
+                  onFocus={() => setSuggestionsFor(index)}
+                  onChange={event => {
+                    e.updateItem(index, { description: event.target.value });
+                    setSuggestionsFor(index);
+                  }} />
+                {showSuggestions && <ul className="item-suggestions" id={suggestionsId} aria-label="Saved items">
+                  {suggestions.map(suggestion => <li key={suggestion.description}>
+                    <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => {
+                      e.updateItem(index, { description: suggestion.description, unitPrice: suggestion.price });
+                      closeSuggestions();
+                    }}>{suggestion.description}</button>
+                  </li>)}
+                </ul>}
+              </div>
               <div className="field-grid"><NumberField label="Quantity" min="0.01" step="any" value={item.quantity} error={e.errors[`quantity-${index}`]}
                 onValue={value => e.updateItem(index, { quantity: value })} />
                 <NumberField label="Unit price (RM)" step="0.01" value={item.unitPrice} error={e.errors[`price-${index}`]}
