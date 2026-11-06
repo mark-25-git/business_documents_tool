@@ -26,8 +26,8 @@ function NumberField({ value, onValue, ...props }: Omit<InputProps, "value" | "o
 function CheckField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
   return <label className="check-field"><input type="checkbox" checked={checked} onChange={event => onChange(event.target.checked)} /><span>{label}</span></label>;
 }
-function Section({ title, subtitle, children, id }: { title: string; subtitle?: string; children: React.ReactNode; id?: string }) {
-  return <section className="editor-section" id={id}><header className="section-heading"><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</header>{children}</section>;
+function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
+  return <section className="editor-section" id={id}><h2>{title}</h2>{children}</section>;
 }
 export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
   const [customerOpen, setCustomerOpen] = useState(false);
@@ -58,7 +58,7 @@ export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
           <details className="disclosure"><summary>Revision details<ChevronDown size={17} /></summary><div className="disclosure-content">
             <Input label="Revision suffix" hint="For example: (rev01)" value={d.suffix} onChange={event => field("suffix")(event.target.value)} /></div></details>
         </Section>
-        <Section title="Customer" subtitle="Choose who this document is for." id="customer-section">
+        <Section title="Customer" id="customer-section">
           {d.customer ? <><div className="selected-customer"><span className="customer-avatar"><User size={20} /></span><div><strong>{d.customer.name}</strong>
             <small>{d.customer.id.startsWith("TEMP-") ? "New customer · added when you save" : "Details saved with this document"}</small></div>
             <Button variant="ghost" onClick={() => setCustomerOpen(true)}>Change</Button></div>
@@ -83,7 +83,7 @@ export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
             <span className="customer-avatar"><User size={22} /></span><span><strong>Choose a customer</strong><small>Search saved customers or add someone new</small></span><Plus size={20} /></button>}
           {e.errors.customer && <p id="customer-error" className="field-error">{e.errors.customer}</p>}
         </Section>
-        <Section title="Items" subtitle="Add products, services, or discounts." id="items-section">
+        <Section title="Items" id="items-section">
           {e.errors.items && <p className="field-error" role="alert">{e.errors.items}</p>}
           {d.items.map((item, index) => {
             const suggestions = e.suggestions.filter(s => !/delivery|shipping/i.test(s.description) &&
@@ -110,7 +110,7 @@ export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
             requestAnimationFrame(() => document.getElementById(`description-${d.items.length}`)?.focus());
           }}><Plus size={18} />Add item</Button>
         </Section>
-        <Section title="Charges" subtitle="Delivery and tax are optional.">
+        <Section title="Charges">
           <h3>Delivery</h3><CheckField label="Free delivery" checked={d.freeDelivery} onChange={field("freeDelivery")} />
           {!d.freeDelivery && <NumberField label="Delivery fee (RM)" min="0" step="0.01" value={d.deliveryFee} error={e.errors.deliveryFee} onValue={field("deliveryFee")} />}
           <div className="section-divider" /><CheckField label="Charge tax" checked={d.taxEnabled} onChange={value => { e.patch("taxEnabled", value); if (!value) e.patch("taxManual", false); }} />

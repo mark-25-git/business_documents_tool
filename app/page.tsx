@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { ArrowLeft, CheckCircle2, AlertCircle, XCircle, FileText, Info, MoreHorizontal, Plus, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertCircle, XCircle, Info, MoreHorizontal, Plus, RotateCcw, X } from "lucide-react";
 import { useDocumentEditor } from "@/components/use-document-editor";
 import { DocumentHome } from "@/components/document-home";
 import { DocumentEditorForm } from "@/components/document-editor-form";
@@ -39,8 +39,8 @@ function Workspace() {
   return <div className="app-shell">
     <header className="app-header"><div className="header-inner">
       <button type="button" className="brand" onClick={() => e.navigate("home")} disabled={pending} aria-label="Megah documents home">
-        <span className="brand-mark"><FileText size={22} strokeWidth={1.8} /></span><span>Megah<span className="brand-subtitle">Document workspace</span></span>
-      </button><span className="connection-label"><span />Google Sheets</span>
+        Megah
+      </button><span className="workspace-label">Invoice tool</span>
     </div></header>
     <main className={isHome ? "workspace home-workspace" : "workspace editor-workspace"}>
       {e.feedback && <div className={`feedback feedback-${e.feedback.kind}`} role={e.feedback.kind === "error" ? "alert" : "status"}>
@@ -52,7 +52,7 @@ function Workspace() {
         <div className="editor-heading"><Button variant="ghost" onClick={() => e.navigate("home")} disabled={pending}><ArrowLeft size={18} />Documents</Button>
           <div className="editor-status"><span className={`status-badge ${cancelled ? "cancelled" : ""}`}>{cancelled ? "Cancelled" : e.id && !e.dirty ? "Saved" : "Unsaved"}</span>
             <Button variant="ghost" size="icon" aria-label="More document actions" disabled={pending} onClick={() => setMore(true)}><MoreHorizontal size={22} /></Button></div></div>
-        <div className="document-title"><h1>{title}</h1><p className="muted">{e.draft.customer ? e.draft.billingName : "A few details. A document ready to send."}</p></div>
+        <div className="document-title"><h1>{title}</h1>{e.id && <p className="muted">{[documentLabels[e.draft.type], e.draft.billingName].filter(Boolean).join(" · ")}</p>}</div>
         {e.loadError && <div className="inline-warning"><AlertCircle size={18} /><span>{e.loadError}</span><Button variant="outline" onClick={e.reload}>Retry</Button></div>}
         <nav className="view-switch" aria-label="Document views"><button type="button" aria-current={e.screen === "edit" ? "page" : undefined} onClick={() => e.navigate("edit", e.id)}>Edit document</button>
           <button type="button" aria-current={e.screen === "preview" ? "page" : undefined} onClick={() => e.navigate("preview", e.id)}>Preview</button></nav>
@@ -61,7 +61,7 @@ function Workspace() {
           {(e.screen === "preview" || wide) && <div className="preview-column"><Preview draft={e.draft} number={e.fullNumber} canDownload={!!e.id && !e.dirty && !e.duplicate && !pending} /></div>}
         </div>
         <footer className="save-bar"><div className="save-bar-inner"><div className="save-total"><span>Total amount</span><strong>{money(e.totals.total)}</strong></div>
-          <div className="save-actions"><span className="save-hint">{e.dirty ? "You have unsaved changes" : e.id ? "All changes saved" : "Ready when you are"}</span>
+          <div className="save-actions">
             <Button type="submit" form="document-editor" busy={e.busy === "save"} busyLabel="Saving…" disabled={pending || (e.id !== null && !e.dirty)}>
               {e.id ? "Save changes" : "Save document"}</Button></div></div></footer>
       </>}

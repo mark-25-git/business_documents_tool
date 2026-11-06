@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo } from "react";
 import { usePDF } from "@react-pdf/renderer";
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 import { DocumentPDF } from "./DocumentPDF";
 import { PdfCanvas } from "./pdf-canvas";
 import { calculate, documentLabels, shipping, type Draft } from "@/lib/document-model";
@@ -25,14 +25,13 @@ export default function DocumentPreviewPane({ draft, number, canDownload }: { dr
   useEffect(() => { update(document); }, [document, update]);
   const prefix = draft.type === "PROFORMA_INVOICE" ? "PI" : draft.type === "DELIVERY_ORDER" ? "DO" : draft.type[0];
   return <section className="preview-pane" aria-label="Document preview">
-    <div className="preview-heading"><div><h2>Preview</h2><p className="muted">{number || "Number assigned when saved"}</p></div><FileText size={22} className="muted" /></div>
-    {!canDownload && <p className="preview-notice">This preview includes unsaved changes. Save to download the final PDF.</p>}
+    <div className="preview-heading"><h2>PDF preview</h2>{number && <span className="document-meta">{number}</span>}</div>
     {instance.error ? <div className="empty-state" role="alert"><h3>Preview could not be generated</h3><p>{instance.error}</p><button className="button button-outline" onClick={() => update(document)}>Try again</button></div>
       : instance.loading || !instance.url ? <div className="preview-loading" role="status"><div className="loading-dot" /><p>Preparing preview…</p></div>
       : <><div className="preview-actions">
         <a className="button button-outline" href={instance.url} target="_blank" rel="noreferrer"><ExternalLink size={17} />Open PDF</a>
         {canDownload ? <a className="button button-default" href={instance.url} download={`${prefix}${number}.pdf`}><Download size={17} />Download PDF</a>
-          : <span className="button button-outline" aria-disabled="true"><Download size={17} />Save to download</span>}
+          : <span className="preview-notice">Save to download the PDF</span>}
       </div><PdfCanvas url={instance.url} />
         <p className="preview-help">Preview not displaying? Use Open PDF to view it in your browser.</p></>}
   </section>;
