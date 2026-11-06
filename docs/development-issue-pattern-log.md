@@ -50,10 +50,19 @@ Exclude secrets, personal data, and routine cosmetic changes.
 
 ## 2026-11-06 — Native date field overflows on iPhone
 
-- Status: Fix implemented locally. Device verification pending.
+- Status: Fixed. The user confirmed the visual fix on iPhone.
 - Area: Shared floating-label date input.
 - Symptom and trigger: A populated date field on iPhone Safari appeared taller and wider than adjacent inputs, with its value centered. The native picker opened normally.
 - Evidence and cause: The shared field uses percentage width and padding. The iOS date appearance can apply content-box sizing and center the inner value. [WebKit reproduced the width issue with padded date inputs](https://bugs.webkit.org/show_bug.cgi?id=301648).
 - Solution: Reset the date field appearance, use border-box sizing, and align the inner value with the label. Keep the HTML date input so the browser provides the picker.
 - Verification: The populated field at 390px and the empty field at 320px both measured 58px high and matched their container widths in the desktop browser. TypeScript and document model tests passed.
-- Limitation: The browser checks used resized desktop Chromium. Confirm the rendering and picker on iPhone Safari.
+- Device verification: The user confirmed the visual fix on iPhone after the change was pushed.
+
+## 2026-11-06 — Document actions shows only a backdrop on iPhone
+
+- Status: Fix implemented locally. Device verification pending.
+- Area: Shared compact dialog used for document actions, confirmations, and item actions.
+- Symptom and trigger: Tapping the document toolbar's three-dot button on iPhone darkened the screen without showing the actions.
+- Evidence: The backdrop indicates that the native modal opened. The compact dialog combined `height: fit-content` on the dialog with `height: 100%` on its child. [WebKit documented that exact combination collapsing the child to zero height](https://bugs.webkit.org/show_bug.cgi?id=242837). The report matches the app's layout, but the failure was not reproduced on the affected device.
+- Solution: Let the compact dialog's child size from its own content and inherit the dialog's viewport height cap.
+- Verification: At 390px, desktop Chromium showed the document actions in a centered, content-sized panel. The cancellation confirmation opened and dismissed without changing the document.
