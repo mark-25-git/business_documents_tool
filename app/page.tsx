@@ -15,6 +15,7 @@ const Preview = dynamic(() => import("@/components/document-preview-pane"), {
 function Workspace() {
   const e = useDocumentEditor();
   const [wide, setWide] = React.useState(false);
+  const [pdfActionsTarget, setPdfActionsTarget] = React.useState<HTMLDivElement | null>(null);
   const [more, setMore] = React.useState(false);
   const positions = React.useRef<Record<string, number>>({});
   React.useEffect(() => {
@@ -51,14 +52,14 @@ function Workspace() {
             onClick={() => isPreview ? e.navigate("edit", e.id) : e.navigate("home")} disabled={pending}><ChevronLeft size={23} /></Button>
           <h1>{isPreview ? "Preview" : title}</h1>
           {!isPreview && <div className="toolbar-actions">
-            <Button variant="ghost" size="icon" aria-label="Download PDF" title={canDownload ? "Download PDF" : "Save the document to download the PDF"}
+            {wide ? <div className="toolbar-actions" ref={setPdfActionsTarget} /> : <><Button variant="ghost" size="icon" aria-label="Download PDF" title={canDownload ? "Download PDF" : "Save the document to download the PDF"}
               disabled={!canDownload} busyLabel="…" onClick={async () => {
                 try {
                   const { downloadDocumentPdf } = await import("@/components/document-pdf-output");
                   await downloadDocumentPdf(e.draft, e.fullNumber);
                 } catch { e.setFeedback({ kind: "error", text: "PDF could not be downloaded. Please try again." }); }
               }}><Download size={20} /></Button>
-            <Button variant="ghost" size="icon" aria-label="Preview PDF" title="Preview PDF" onClick={() => e.navigate("preview", e.id)}><Eye size={20} /></Button>
+            <Button variant="ghost" size="icon" aria-label="Preview PDF" title="Preview PDF" onClick={() => e.navigate("preview", e.id)}><Eye size={20} /></Button></>}
             <Button variant="ghost" size="icon" aria-label="More document actions" disabled={pending} onClick={() => setMore(true)}><MoreHorizontal size={22} /></Button>
           </div>}
         </header>
@@ -66,7 +67,7 @@ function Workspace() {
         {e.loadError && <div className="inline-warning"><AlertCircle size={18} /><span>{e.loadError}</span><Button variant="outline" onClick={e.reload}>Retry</Button></div>}
         <div className={`editor-layout ${isPreview ? "preview-screen" : ""}`}>
           <div className="editor-form-pane" hidden={isPreview}><DocumentEditorForm editor={e} /></div>
-          {(isPreview || wide) && <div className="preview-column"><Preview draft={e.draft} number={e.fullNumber} canDownload={canDownload} /></div>}
+          {(isPreview || wide) && <div className="preview-column"><Preview draft={e.draft} number={e.fullNumber} canDownload={canDownload} actionsTarget={wide && !isPreview ? pdfActionsTarget : null} inlineActions={!wide || isPreview} /></div>}
         </div>
         {!isPreview && <footer className="save-bar"><div className="save-bar-inner"><div className="save-total"><span>Total amount</span><strong>{money(e.totals.total)}</strong></div>
           <div className="save-actions">

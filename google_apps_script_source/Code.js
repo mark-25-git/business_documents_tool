@@ -1,13 +1,3 @@
-// Enforce text storage before writing so Sheets preserves leading zeroes.
-function preparePhoneCells(sheet, headers, row, rowIndex) {
-  headers.forEach((header, index) => {
-    if (['phone', 'billingphone', 'shippingphone'].includes(header)) {
-      row[index] = String(row[index] == null ? '' : row[index]);
-      sheet.getRange(rowIndex, index + 1).setNumberFormat('@');
-    }
-  });
-}
-
 /**
  * BACKEND CODE FOR GOOGLE SHEETS (HIGH PERFORMANCE & LOW LATENCY EDITION)
  * Copy and paste this into your Google Apps Script editor (Extensions > Apps Script)
@@ -181,7 +171,6 @@ function createCustomer(data) {
     if (colIdx !== -1) row[colIdx] = mapping[key];
   });
 
-  preparePhoneCells(sheet, headers, row, sheet.getLastRow() + 1);
   sheet.appendRow(row);
   return response({ success: true, id: id });
 }
@@ -232,7 +221,6 @@ function updateCustomer(data) {
   });
 
   // Fast single batch range update
-  preparePhoneCells(sheet, headers, targetRow, rowIndex);
   sheet.getRange(rowIndex, 1, 1, targetRow.length).setValues([targetRow]);
   return response({ success: true });
 }
@@ -392,7 +380,6 @@ function createDocument(data) {
     if (colIdx !== -1) row[colIdx] = mapping[key];
   });
 
-  preparePhoneCells(docSheet, headers, row, docSheet.getLastRow() + 1);
   docSheet.appendRow(row);
 
   // Batch insert line items
@@ -477,7 +464,6 @@ function updateDocument(data) {
     }
   });
 
-  preparePhoneCells(docSheet, headers, targetRow, rowIndex);
   docSheet.getRange(rowIndex, 1, 1, targetRow.length).setValues([targetRow]);
 
   // Sync Line Items (delete existing and insert new batch)

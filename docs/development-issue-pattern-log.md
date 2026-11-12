@@ -78,3 +78,11 @@ Exclude secrets, personal data, and routine cosmetic changes.
 - Coverage: All 34 legacy formatter cases pass against the production helper. API tests cover numeric names, IDs, phone numbers, descriptions, zero and empty cells. Spreadsheet helper tests verify text formats, string conversion, leading-zero preservation, and unchanged numeric amounts. TypeScript passes.
 - Limitations: No live records changed. Existing lost leading zeroes cannot be recovered by string conversion. Apps Script source must be deployed before live spreadsheet writes gain the server-side rule. Browser reproduction of the original minified stack remains unverified. The favicon 404 is separate.
 - Build check: Production build completed successfully, including lint, type validation and static page generation, after transient compiler SIGTERM messages.
+
+## 2026-11-12 — Consolidate desktop PDF actions and simplify phone storage
+
+- Status: Implemented locally; deployment pending.
+- Area: Responsive document toolbar, PDF preview, and Apps Script writes.
+- Change: Remove the repeated document number above the rendered PDF. On desktop, move the existing Open PDF and Download links into the editor toolbar using the preview's generated blob, and hide Preview when the side-by-side PDF is visible. Keep mobile preview and main-editor download access.
+- Phone storage: At the user's request, remove the explicit Plain text cell-formatting helper and its test added earlier today. Keep shared phone auto-formatting and API string normalization. This supersedes the earlier server-side storage enforcement; formatted phone values contain a dash and are sent as strings. Partial or externally supplied numeric values no longer receive server-side text enforcement.
+- Validation: All 40 phone/API/model regressions, TypeScript, and production build pass. No live spreadsheet records changed. On-device visual verification remains pending.
