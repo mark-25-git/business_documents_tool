@@ -1,4 +1,5 @@
 "use client";
+import { formatPhoneNumber } from "@/lib/phone";
 import { useState } from "react";
 import { ArrowRight, ChevronRight, Plus, Search, User } from "lucide-react";
 import { Sheet } from "./ui/sheet";
@@ -21,7 +22,7 @@ export function CustomerSheet({ open, onClose, editor: e }: { open: boolean; onC
       if (customer.name.trim()) select({ ...customer, name: customer.name.trim(), id: `TEMP-${Date.now()}` });
     }}><p className="muted">Use these details for this document. The customer will be added when you save.</p>
       <Input label="Customer name" required value={customer.name} onChange={event => setCustomer({ ...customer, name: event.target.value })} autoFocus />
-      <Input label="Phone" type="tel" autoComplete="tel" value={customer.phone} onChange={event => setCustomer({ ...customer, phone: event.target.value })} />
+      <Input label="Phone" type="tel" autoComplete="tel" value={customer.phone} onChange={event => setCustomer({ ...customer, phone: formatPhoneNumber(event.target.value) })} />
       <Input label="Email" type="email" autoComplete="email" value={customer.email} onChange={event => setCustomer({ ...customer, email: event.target.value })} />
       <Textarea label="Address" autoComplete="street-address" value={customer.address} onChange={event => setCustomer({ ...customer, address: event.target.value })} />
       <div className="button-row"><Button variant="outline" onClick={() => setAdding(false)}>Back to search</Button><Button type="submit">Use customer<ArrowRight size={16} /></Button></div>

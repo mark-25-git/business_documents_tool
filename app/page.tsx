@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { ChevronLeft, CheckCircle2, AlertCircle, Eye, XCircle, Info, MoreHorizontal, Plus, RotateCcw, X } from "lucide-react";
+import { ChevronLeft, CheckCircle2, AlertCircle, Download, Eye, XCircle, Info, MoreHorizontal, Plus, RotateCcw, X } from "lucide-react";
 import { useDocumentEditor } from "@/components/use-document-editor";
 import { DocumentHome } from "@/components/document-home";
 import { DocumentEditorForm } from "@/components/document-editor-form";
@@ -36,6 +36,7 @@ function Workspace() {
   const isPreview = e.screen === "preview";
   const cancelled = ["CANCELLED", "INACTIVE"].includes(e.draft.status);
   const pending = !!e.busy || e.fetching;
+  const canDownload = !!e.id && !e.dirty && !e.duplicate && !pending;
   const title = e.id ? e.fullNumber : `New ${documentLabels[e.draft.type].toLowerCase()}`;
   return <div className="app-shell">
     <main className={isHome ? "workspace home-workspace" : `workspace editor-workspace${isPreview ? " preview-workspace" : ""}`}>
@@ -50,6 +51,13 @@ function Workspace() {
             onClick={() => isPreview ? e.navigate("edit", e.id) : e.navigate("home")} disabled={pending}><ChevronLeft size={23} /></Button>
           <h1>{isPreview ? "Preview" : title}</h1>
           {!isPreview && <div className="toolbar-actions">
+            <Button variant="ghost" size="icon" aria-label="Download PDF" title={canDownload ? "Download PDF" : "Save the document to download the PDF"}
+              disabled={!canDownload} busyLabel="…" onClick={async () => {
+                try {
+                  const { downloadDocumentPdf } = await import("@/components/document-pdf-output");
+                  await downloadDocumentPdf(e.draft, e.fullNumber);
+                } catch { e.setFeedback({ kind: "error", text: "PDF could not be downloaded. Please try again." }); }
+              }}><Download size={20} /></Button>
             <Button variant="ghost" size="icon" aria-label="Preview PDF" title="Preview PDF" onClick={() => e.navigate("preview", e.id)}><Eye size={20} /></Button>
             <Button variant="ghost" size="icon" aria-label="More document actions" disabled={pending} onClick={() => setMore(true)}><MoreHorizontal size={22} /></Button>
           </div>}
@@ -58,7 +66,7 @@ function Workspace() {
         {e.loadError && <div className="inline-warning"><AlertCircle size={18} /><span>{e.loadError}</span><Button variant="outline" onClick={e.reload}>Retry</Button></div>}
         <div className={`editor-layout ${isPreview ? "preview-screen" : ""}`}>
           <div className="editor-form-pane" hidden={isPreview}><DocumentEditorForm editor={e} /></div>
-          {(isPreview || wide) && <div className="preview-column"><Preview draft={e.draft} number={e.fullNumber} canDownload={!!e.id && !e.dirty && !e.duplicate && !pending} /></div>}
+          {(isPreview || wide) && <div className="preview-column"><Preview draft={e.draft} number={e.fullNumber} canDownload={canDownload} /></div>}
         </div>
         {!isPreview && <footer className="save-bar"><div className="save-bar-inner"><div className="save-total"><span>Total amount</span><strong>{money(e.totals.total)}</strong></div>
           <div className="save-actions">

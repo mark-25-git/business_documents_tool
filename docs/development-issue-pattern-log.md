@@ -66,3 +66,15 @@ Exclude secrets, personal data, and routine cosmetic changes.
 - Evidence: The backdrop indicates that the native modal opened. The compact dialog combined `height: fit-content` on the dialog with `height: 100%` on its child. [WebKit documented that exact combination collapsing the child to zero height](https://bugs.webkit.org/show_bug.cgi?id=242837). The report matches the app's layout, but the failure was not reproduced on the affected device.
 - Solution: Let the compact dialog's child size from its own content and inherit the dialog's viewport height cap.
 - Verification: At 390px, desktop Chromium showed the document actions in a centered, content-sized panel. The cancellation confirmation opened and dismissed without changing the document.
+
+## 2026-11-12 — Restore phone formatting and enforce spreadsheet text boundaries
+
+- Status: Fixed locally; application and Apps Script deployment pending.
+- Area: Customer/editor phone inputs, API adapter, and spreadsheet writes.
+- Symptom: PDF generation reports `.trim is not a function`; phone inputs no longer auto-format.
+- Evidence: Rebuilt inputs stored raw event values. The previous formatter survived only in a detached test script. Apps Script reads raw `getValues()` cells, and the API adapter previously passed numeric phone cells through unchanged. PDF calls `.trim()` on those values. The later null-props error is likely a cascading renderer failure, not independently reproduced.
+- Cause: Phone input rules were disconnected during the form rebuild, and spreadsheet read/write boundaries did not enforce the application's string contract.
+- Solution: Restore the existing formatter as a shared helper for new-customer, billing, and shipping inputs. Normalize API text fields on reads. Before customer/document create and update writes, convert phone values to strings and format their target cells as Plain text.
+- Coverage: All 34 legacy formatter cases pass against the production helper. API tests cover numeric names, IDs, phone numbers, descriptions, zero and empty cells. Spreadsheet helper tests verify text formats, string conversion, leading-zero preservation, and unchanged numeric amounts. TypeScript passes.
+- Limitations: No live records changed. Existing lost leading zeroes cannot be recovered by string conversion. Apps Script source must be deployed before live spreadsheet writes gain the server-side rule. Browser reproduction of the original minified stack remains unverified. The favicon 404 is separate.
+- Build check: Production build completed successfully, including lint, type validation and static page generation, after transient compiler SIGTERM messages.
