@@ -8,7 +8,12 @@ const moduleScope = { exports: {} };
 const source = ts.transpileModule(fs.readFileSync(require.resolve("../lib/document-model.ts"), "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText;
-vm.runInNewContext(source, { exports: moduleScope.exports, module: moduleScope, require, Date });
+const phoneScope = { exports: {} };
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(require.resolve("../lib/phone.ts"), "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+}).outputText, { exports: phoneScope.exports, module: phoneScope });
+vm.runInNewContext(source, { exports: moduleScope.exports, module: moduleScope,
+  require: name => name === "./phone" ? phoneScope.exports : require(name), Date });
 const { newDraft, chooseCustomer, fromDocument, calculate, toPayload, fingerprint, validateDraft, splitNumber } = moduleScope.exports;
 const customer = { id: "C-1", name: "Example company", address: "Billing address", phone: "0123456789", email: "example@example.com" };
 const fixture = () => ({
@@ -71,4 +76,21 @@ test("decimal calculations and long item lists retain correct totals", () => {
   const d = { ...fixture(), items: Array.from({ length: 50 }, (_, i) => ({ description: "Item " + i, quantity: 0.5, unitPrice: 10, amount: 5 })) };
   assert.equal(calculate(d).total, 290);
   assert.equal(splitNumber("2611-001").suffix, "");
+});
+
+test("customer and saved-document phones format before appearing in fields", () => {
+  const selected = chooseCustomer(newDraft(), { ...customer, phone: "123456789", shippingPhone: "+60377889900" });
+  assert.equal(selected.billingPhone, "012-3456789");
+  assert.equal(selected.shippingPhone, "03-77889900");
+  const doc = { ...toPayload(fixture(), true), id: "DOC-1", docNumber: "2611-001",
+    billingPhone: "123456789", shippingPhone: "601123456789" };
+  const loaded = fromDocument(doc, []);
+  assert.equal(loaded.billingPhone, "012-3456789");
+  assert.equal(loaded.shippingPhone, "011-23456789");
+  const payload = toPayload({ ...loaded, billingPhone: "123456789", shippingPhone: "+60377889900", differentShipping: true }, true);
+  assert.equal(payload.billingPhone, "012-3456789");
+  assert.equal(payload.shippingPhone, "03-77889900");
+  assert.ok(validateDraft({ ...selected, billingPhone: "12345678" }).billingPhone);
+  assert.ok(validateDraft({ ...selected, differentShipping: true, shippingPhone: "+60" }).shippingPhone);
+  assert.equal(validateDraft({ ...selected, billingPhone: "+6581234567" }).billingPhone, undefined);
 });

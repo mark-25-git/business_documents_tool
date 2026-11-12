@@ -14,13 +14,22 @@ test("API text fields normalize numeric and empty spreadsheet cells before editi
     getItemSuggestions: [{ description: 456, price: "10" }],
   };
   const scope = { exports: {} };
+  const phoneScope = { exports: {} };
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(require.resolve("../lib/phone.ts"), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText, { exports: phoneScope.exports, module: phoneScope });
+  const writes = [];
   const source = ts.transpileModule(fs.readFileSync(require.resolve("../lib/api.ts"), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText;
   vm.runInNewContext(source, {
-    exports: scope.exports, module: scope, require, URL, console,
+    exports: scope.exports, module: scope,
+    require: name => name === "./phone" ? phoneScope.exports : require(name), URL, console,
     process: { env: { NEXT_PUBLIC_GAS_API_URL: "https://example.test/api" } },
-    fetch: async url => ({ ok: true, json: async () => ({ success: true, data: responses[new URL(url).searchParams.get("action")] }) }),
+    fetch: async (url, options) => {
+      if (options.body) writes.push(JSON.parse(options.body));
+      return { ok: true, json: async () => ({ success: true, data: responses[new URL(url).searchParams.get("action")] }) };
+    },
   });
   const api = scope.exports;
   const [customer] = await api.getCustomers(true);
@@ -41,4 +50,17 @@ test("API text fields normalize numeric and empty spreadsheet cells before editi
   const [suggestion] = await api.getItemSuggestions();
   assert.equal(suggestion.description.trim(), "456");
   assert.equal(suggestion.price, 10);
+  const payload = { id: "C-1", phone: "123456789", billingPhone: "+601123456789", shippingPhone: "+65 8123 4567", totalAmount: 25 };
+  await api.createCustomer(payload);
+  await api.updateCustomer(payload);
+  await api.createDocument(payload);
+  await api.updateDocument("DOC-1", payload);
+  assert.equal(writes.length, 4);
+  for (const body of writes) {
+    assert.equal(body.phone, "'012-3456789");
+    assert.equal(body.billingPhone, "'011-23456789");
+    assert.equal(body.shippingPhone, "'+6581234567");
+    assert.equal(body.totalAmount, 25);
+  }
+  assert.equal(payload.phone, "123456789");
 });

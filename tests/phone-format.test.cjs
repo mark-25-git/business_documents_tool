@@ -3,7 +3,7 @@ const ts = require("typescript");
 const scope = { exports: {} };
 const source = ts.transpileModule(fs.readFileSync("lib/phone.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
 require("node:vm").runInNewContext(source, { exports: scope.exports, module: scope });
-const { formatPhoneNumber } = scope.exports;
+const { formatPhoneNumber, phoneError, phoneForSheet } = scope.exports;
 
 
 const { test } = require("node:test");
@@ -55,7 +55,7 @@ const testCases = [
   // Missing leading 0
   { input: '1234567890', expected: '012-34567890' },
   { input: '123456789', expected: '012-3456789' },
-  { input: '12345678', expected: '01-2345678' },
+  { input: '12345678', expected: '012-345678' },
 
   // Edge cases
   { input: 'abc123456789', expected: '012-3456789' },
@@ -63,4 +63,53 @@ const testCases = [
 ];
 for (const { input, expected } of testCases) {
   test(`format phone ${input}`, () => assert.equal(formatPhoneNumber(input), expected));
+  test(`format stays stable for ${input}`, () => assert.equal(formatPhoneNumber(formatPhoneNumber(input)), expected));
 }
+
+const completeNumbers = [
+  ...Array.from({ length: 10 }, (_, i) => `01${i}${i === 1 ? "23456789" : "2345678"}`),
+  "0377889900", "041234567", "051234567", "061234567", "075551212",
+  "082123456", "091234567", "0881234567", "0891234567",
+];
+for (const local of completeNumbers) {
+  const expected = formatPhoneNumber(local);
+  for (const input of [local, local.slice(1), `60${local.slice(1)}`, `+60${local.slice(1)}`]) {
+    test(`typing and pasting ${input} produce the same local format`, () => {
+      let value = "";
+      for (const character of input) value = formatPhoneNumber(value + character);
+      assert.equal(value, expected);
+      assert.equal(formatPhoneNumber(input), expected);
+    });
+  }
+}
+test("partial country codes survive typing until the number can be normalized", () => {
+  for (const input of ["+", "+6", "+60", "+601", "+60123456", "60", "60123456"]) {
+    assert.equal(formatPhoneNumber(input), input);
+  }
+});
+
+for (const input of ["+6581234567", "+442079460123", "+14155552671", "+628123456789", "+8613812345678"]) {
+  test(`international country code remains intact for ${input}`, () => {
+    let value = "";
+    for (const character of input) value = formatPhoneNumber(value + character);
+    assert.equal(value, input);
+    assert.equal(formatPhoneNumber(input), input);
+    assert.equal(phoneError(input), undefined);
+    assert.equal(phoneForSheet(input), "'" + input);
+  });
+}
+test("saving requires complete Malaysian mobile numbers and preserves landlines", () => {
+  for (const input of ["123456789", "0123456789", "01123456789", "+60123456789", "0377889900", "075551212", "0881234567", ""]) {
+    assert.equal(phoneError(input), undefined, input);
+  }
+  for (const input of ["12345678", "0123", "012345678901", "+", "+60", "+601", "+65"]) {
+    assert.ok(phoneError(input), input);
+  }
+});
+test("Sheets text prefix appears exactly once and stays out of the displayed number", () => {
+  assert.equal(phoneForSheet("123456789"), "'012-3456789");
+  assert.equal(phoneForSheet("'012-3456789"), "'012-3456789");
+  assert.equal(formatPhoneNumber("'+6581234567"), "+6581234567");
+  assert.equal(phoneForSheet(null), "");
+  assert.equal(phoneForSheet(""), "");
+});

@@ -1,3 +1,4 @@
+import { phoneForSheet } from "./phone";
 import { CreateDocumentPayload, Customer, InvoiceDocument, DocumentType } from "./types";
 
 // Sheets returns numeric cells as numbers, even for text fields such as phone numbers.
@@ -29,7 +30,11 @@ async function fetchGasApi<T>(
 
     if (options?.method && options.method.toUpperCase() === "POST") {
       fetchOpts.method = "POST";
-      fetchOpts.body = JSON.stringify(options.body || {});
+      const body = { ...options.body };
+      for (const key of ["phone", "billingPhone", "shippingPhone"]) {
+        if (body[key] !== undefined) body[key] = phoneForSheet(body[key]);
+      }
+      fetchOpts.body = JSON.stringify(body);
     }
 
     const res = await fetch(url.toString(), fetchOpts);

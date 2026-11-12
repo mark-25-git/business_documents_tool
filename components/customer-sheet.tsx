@@ -1,5 +1,5 @@
 "use client";
-import { formatPhoneNumber } from "@/lib/phone";
+import { formatPhoneNumber, phoneError } from "@/lib/phone";
 import { useState } from "react";
 import { ArrowRight, ChevronRight, Plus, Search, User } from "lucide-react";
 import { Sheet } from "./ui/sheet";
@@ -10,6 +10,7 @@ import type { Customer } from "@/lib/types";
 import type { DocumentEditor } from "./use-document-editor";
 
 export function CustomerSheet({ open, onClose, editor: e }: { open: boolean; onClose: () => void; editor: DocumentEditor }) {
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [customer, setCustomer] = useState({ name: "", phone: "", email: "", address: "" });
@@ -17,12 +18,14 @@ export function CustomerSheet({ open, onClose, editor: e }: { open: boolean; onC
   const select = (value: Customer) => { e.selectCustomer(value); onClose(); setQuery(""); setAdding(false); };
   return <Sheet open={open} title={adding ? "New customer" : "Choose customer"} onClose={onClose} focusField={false}
     headerAction={!adding && <Button variant="ghost" size="icon" aria-label="Add new customer" title="Add new customer"
-      onClick={() => { setCustomer({ name: query.trim(), phone: "", email: "", address: "" }); setAdding(true); }}><Plus size={22} /></Button>}>
+      onClick={() => { setCustomer({ name: query.trim(), phone: "", email: "", address: "" }); setPhoneTouched(false); setAdding(true); }}><Plus size={22} /></Button>}>
     {adding ? <form className="form-stack" onSubmit={event => { event.preventDefault();
+      setPhoneTouched(true);
+      if (phoneError(customer.phone)) return;
       if (customer.name.trim()) select({ ...customer, name: customer.name.trim(), id: `TEMP-${Date.now()}` });
     }}><p className="muted">Use these details for this document. The customer will be added when you save.</p>
       <Input label="Customer name" required value={customer.name} onChange={event => setCustomer({ ...customer, name: event.target.value })} autoFocus />
-      <Input label="Phone" type="tel" autoComplete="tel" value={customer.phone} onChange={event => setCustomer({ ...customer, phone: formatPhoneNumber(event.target.value) })} />
+      <Input label="Phone" type="tel" autoComplete="tel" value={customer.phone} error={phoneTouched ? phoneError(customer.phone) : undefined} onBlur={() => setPhoneTouched(true)} onChange={event => setCustomer({ ...customer, phone: formatPhoneNumber(event.target.value) })} />
       <Input label="Email" type="email" autoComplete="email" value={customer.email} onChange={event => setCustomer({ ...customer, email: event.target.value })} />
       <Textarea label="Address" autoComplete="street-address" value={customer.address} onChange={event => setCustomer({ ...customer, address: event.target.value })} />
       <div className="button-row"><Button variant="outline" onClick={() => setAdding(false)}>Back to search</Button><Button type="submit">Use customer<ArrowRight size={16} /></Button></div>

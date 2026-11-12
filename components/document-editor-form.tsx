@@ -78,14 +78,14 @@ export function DocumentEditorForm({ editor: e }: { editor: DocumentEditor }) {
             <Button variant="ghost" onClick={() => setCustomerOpen(true)}>Change</Button></div>
             <Input label="Billing name" value={d.billingName} error={e.errors.billingName} onChange={event => field("billingName")(event.target.value)} />
             <Textarea label="Billing address" autoComplete="street-address" value={d.billingAddress} onChange={event => field("billingAddress")(event.target.value)} />
-            <div className="field-grid"><Input label="Phone" type="tel" autoComplete="tel" value={d.billingPhone} onChange={event => field("billingPhone")(formatPhoneNumber(event.target.value))} />
+            <div className="field-grid"><Input label="Phone" type="tel" autoComplete="tel" value={d.billingPhone} error={e.errors.billingPhone} onChange={event => field("billingPhone")(formatPhoneNumber(event.target.value))} />
               <Input label="Email" type="email" autoComplete="email" value={d.billingEmail} onChange={event => field("billingEmail")(event.target.value)} /></div>
             <CheckField label="Show email on document" checked={d.showEmail} onChange={field("showEmail")} />
             <CheckField label="Use a different shipping address" checked={d.differentShipping} onChange={field("differentShipping")} />
             {d.differentShipping && <div className="form-stack inset-section"><h3>Shipping details</h3>
               <Input label="Recipient name" value={d.shippingName} onChange={event => field("shippingName")(event.target.value)} />
               <Textarea label="Shipping address" value={d.shippingAddress} onChange={event => field("shippingAddress")(event.target.value)} />
-              <Input label="Recipient phone" type="tel" value={d.shippingPhone} onChange={event => field("shippingPhone")(formatPhoneNumber(event.target.value))} /></div>}
+              <Input label="Recipient phone" type="tel" value={d.shippingPhone} error={e.errors.shippingPhone} onChange={event => field("shippingPhone")(formatPhoneNumber(event.target.value))} /></div>}
             {!d.customer.id.startsWith("TEMP-") && <details className="disclosure"><summary>Customer profile options<ChevronDown size={17} /></summary><div className="disclosure-content">
               <CheckField label="Also update the saved customer profile" checked={d.syncToMaster} onChange={field("syncToMaster")} />
               <p className="field-hint">Leave this off to change only this document.</p>

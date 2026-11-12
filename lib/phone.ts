@@ -1,10 +1,17 @@
 export const formatPhoneNumber = (input: string) => {
   if (!input) return '';
+  input = input.trim().replace(/^'+/, '');
 
   // Remove all non-digit characters
   let digits = input.replace(/\D/g, '');
-  const originalLength = digits.length;
-  const hadLeadingZero = digits.startsWith('0');
+
+  // Keep an unfinished country code intact while typing. Otherwise the
+  // eight-digit local-number rule turns 60123456 into 060123456 too early.
+  const international = input.trim().startsWith('+');
+  if (international && !digits.startsWith('60')) return '+' + digits;
+  if (digits.startsWith('60') && digits.length < 10) {
+    return (international ? '+' : '') + digits;
+  }
 
   // Remove country code if present (+60 or 60)
   // Malaysian numbers: 10-12 digits with country code, 8-10 digits without
@@ -28,12 +35,6 @@ export const formatPhoneNumber = (input: string) => {
     if (digits.length === 8 || digits.length === 9 || digits.length === 10 || digits.length === 11) {
       return `${digits.substring(0, 3)}-${digits.substring(3)}`;
     }
-  }
-
-  // Special case: 8-digit numbers that originally didn't have leading 0
-  // When we add 0 to make it 9 digits starting with 01, treat as fixed line (01-xxxxxxx)
-  if (originalLength === 8 && !hadLeadingZero && digits.length === 9 && digits.startsWith('01')) {
-    return `${digits.substring(0, 2)}-${digits.substring(2)}`;
   }
 
   // Mobile numbers: 01x-xxxxxxx or 01x-xxxxxxxx (9, 10, or 11 digits total)
@@ -78,3 +79,17 @@ export const formatPhoneNumber = (input: string) => {
   // Partial input - return digits as user types
   return digits;
 };
+
+export function phoneError(input: string): string | undefined {
+  const value = formatPhoneNumber(input);
+  if (!value) return;
+  if (/^01\d-\d{7,8}$/.test(value) || /^0[3-9]-\d{6,9}$/.test(value) || /^08[89]-\d{5,8}$/.test(value)) return;
+  if (/^\+[1-9]\d{6,14}$/.test(value) && !value.startsWith("+60")) return;
+  return "Enter a complete Malaysian phone number or an international number with + and country code.";
+}
+
+// The apostrophe is a Sheets text marker, never part of the displayed number.
+export function phoneForSheet(value: unknown): string {
+  const formatted = formatPhoneNumber(String(value ?? ""));
+  return formatted ? "'" + formatted : "";
+}

@@ -1,4 +1,5 @@
 import type { CreateDocumentPayload, Customer, DocumentType, InvoiceDocument, LineItem } from "./types";
+import { formatPhoneNumber, phoneError } from "./phone";
 
 export const documentLabels: Record<DocumentType, string> = {
   INVOICE: "Invoice", QUOTATION: "Quotation", RECEIPT: "Receipt", DELIVERY_ORDER: "Delivery order", PROFORMA_INVOICE: "Proforma invoice",
@@ -28,11 +29,11 @@ export function newDraft(number = ""): Draft {
 }
 export function chooseCustomer(d: Draft, customer: Customer): Draft {
   const billingAddress = customer.billingAddress || customer.address || "";
-  const billingPhone = customer.billingPhone || customer.phone || "";
+  const billingPhone = formatPhoneNumber(customer.billingPhone || customer.phone || "");
   const billingEmail = customer.billingEmail || customer.email || "";
   const shippingName = customer.shippingName || customer.name;
   const shippingAddress = customer.shippingAddress || customer.address || "";
-  const shippingPhone = customer.shippingPhone || customer.phone || "";
+  const shippingPhone = formatPhoneNumber(customer.shippingPhone || customer.phone || "");
   return { ...d, customer, billingName: customer.name, billingAddress, billingPhone, billingEmail,
     showEmail: !!billingEmail, shippingName, shippingAddress, shippingPhone,
     differentShipping: shippingName !== customer.name || shippingAddress !== billingAddress || shippingPhone !== billingPhone };
@@ -42,8 +43,8 @@ export function fromDocument(doc: InvoiceDocument, customers: Customer[]): Draft
   const items = (doc.items || []).filter(item => !item.description.startsWith("TAX:"));
   return { ...newDraft(), ...splitNumber(doc.docNumber), type: doc.type, date: doc.date.split("T")[0], status: doc.status, notes: doc.notes || "",
     customer: customers.find(c => c.id === doc.customerId) || { id: doc.customerId, name: doc.customerName, address: doc.billingAddress || "", phone: doc.billingPhone || "", email: doc.billingEmail || "" },
-    billingName: doc.customerName, billingAddress: doc.billingAddress || "", billingPhone: doc.billingPhone || "", billingEmail: doc.billingEmail || "",
-    shippingName: doc.shippingName || doc.customerName, shippingAddress: doc.shippingAddress || doc.billingAddress || "", shippingPhone: doc.shippingPhone || doc.billingPhone || "",
+    billingName: doc.customerName, billingAddress: doc.billingAddress || "", billingPhone: formatPhoneNumber(doc.billingPhone || ""), billingEmail: doc.billingEmail || "",
+    shippingName: doc.shippingName || doc.customerName, shippingAddress: doc.shippingAddress || doc.billingAddress || "", shippingPhone: formatPhoneNumber(doc.shippingPhone || doc.billingPhone || ""),
     differentShipping: !!((doc.shippingName && doc.shippingName !== doc.customerName) || (doc.shippingAddress && doc.shippingAddress !== doc.billingAddress) || (doc.shippingPhone && doc.shippingPhone !== doc.billingPhone)),
     showEmail: !!doc.billingEmail, items: items.length ? items : [emptyItem()], deliveryFee: doc.deliveryFee || 0, freeDelivery: !!doc.isFreeDelivery,
     taxEnabled: !!tax, taxTitle: tax?.description.slice(4) || "SST 10%", taxAmount: tax?.amount || 0, taxManual: !!tax };
@@ -64,8 +65,8 @@ export function toPayload(d: Draft, isExisting: boolean): CreateDocumentPayload 
   const ship = shipping(d);
   return { type: d.type, date: d.date, customerId: d.customer!.id, customerName: d.billingName,
     totalAmount: totals.total, status: isExisting ? d.status : d.type === "INVOICE" ? "PENDING" : "DRAFT", notes: d.notes,
-    billingAddress: d.billingAddress, billingPhone: d.billingPhone, billingEmail: d.billingEmail,
-    shippingName: ship.name, shippingAddress: ship.address, shippingPhone: ship.phone,
+    billingAddress: d.billingAddress, billingPhone: formatPhoneNumber(d.billingPhone), billingEmail: d.billingEmail,
+    shippingName: ship.name, shippingAddress: ship.address, shippingPhone: formatPhoneNumber(ship.phone),
     deliveryFee: totals.delivery, isFreeDelivery: d.freeDelivery, syncToMaster: d.syncToMaster,
     items: [...totals.items, ...(d.taxEnabled ? [{ description: `TAX:${d.taxTitle}`, quantity: 1, unitPrice: totals.tax, amount: totals.tax }] : [])],
     docNumber: [d.number.trim(), d.suffix.trim()].filter(Boolean).join(" ") || undefined };
@@ -78,6 +79,10 @@ export function fingerprint(d: Draft): string {
 export type DraftErrors = Record<string, string>;
 export function validateDraft(d: Draft): DraftErrors {
   const errors: DraftErrors = {};
+  const billingPhoneError = phoneError(d.billingPhone);
+  const shippingPhoneError = d.differentShipping ? phoneError(d.shippingPhone) : undefined;
+  if (billingPhoneError) errors.billingPhone = billingPhoneError;
+  if (shippingPhoneError) errors.shippingPhone = shippingPhoneError;
   if (!d.customer) errors.customer = "Choose a customer first.";
   if (d.customer && !d.billingName.trim()) errors.billingName = "Enter the billing name.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) errors.date = "Choose a document date.";
