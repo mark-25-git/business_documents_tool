@@ -7,7 +7,7 @@ import { DocumentHome } from "@/components/document-home";
 import { DocumentEditorForm } from "@/components/document-editor-form";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
-import { documentLabels, money } from "@/lib/document-model";
+import { documentLabels } from "@/lib/document-model";
 
 const Preview = dynamic(() => import("@/components/document-preview-pane"), {
   ssr: false, loading: () => <div className="preview-loading" role="status"><div className="loading-dot" /><p>Loading PDF tools…</p></div>,
@@ -52,13 +52,14 @@ function Workspace() {
             onClick={() => isPreview ? e.navigate("edit", e.id) : e.navigate("home")} disabled={pending}><ChevronLeft size={23} /></Button>
           <h1>{isPreview ? "Preview" : title}</h1>
           {!isPreview && <div className="toolbar-actions">
-            {wide ? <div className="toolbar-actions" ref={setPdfActionsTarget} /> : <><Button variant="ghost" size="icon" aria-label="Download PDF" title={canDownload ? "Download PDF" : "Save the document to download the PDF"}
+            {(wide || !e.id || e.dirty) && <Button type="submit" form="document-editor" busy={e.busy === "save"} busyLabel="Saving…" disabled={pending || (e.id !== null && !e.dirty)}>Save</Button>}
+            {wide ? <div className="toolbar-actions" ref={setPdfActionsTarget} /> : <>{e.id && !e.dirty && <Button variant="ghost" size="icon" aria-label="Download PDF" title={canDownload ? "Download PDF" : "Save the document to download the PDF"}
               disabled={!canDownload} busyLabel="…" onClick={async () => {
                 try {
                   const { downloadDocumentPdf } = await import("@/components/document-pdf-output");
                   await downloadDocumentPdf(e.draft, e.fullNumber);
                 } catch { e.setFeedback({ kind: "error", text: "PDF could not be downloaded. Please try again." }); }
-              }}><Download size={20} /></Button>
+              }}><Download size={20} /></Button>}
             <Button variant="ghost" size="icon" aria-label="Preview PDF" title="Preview PDF" onClick={() => e.navigate("preview", e.id)}><Eye size={20} /></Button></>}
             <Button variant="ghost" size="icon" aria-label="More document actions" disabled={pending} onClick={() => setMore(true)}><MoreHorizontal size={22} /></Button>
           </div>}
@@ -67,12 +68,9 @@ function Workspace() {
         {e.loadError && <div className="inline-warning"><AlertCircle size={18} /><span>{e.loadError}</span><Button variant="outline" onClick={e.reload}>Retry</Button></div>}
         <div className={`editor-layout ${isPreview ? "preview-screen" : ""}`}>
           <div className="editor-form-pane" hidden={isPreview}><DocumentEditorForm editor={e} /></div>
-          {(isPreview || wide) && <div className="preview-column"><Preview draft={e.draft} number={e.fullNumber} canDownload={canDownload} actionsTarget={wide && !isPreview ? pdfActionsTarget : null} inlineActions={!wide || isPreview} /></div>}
+          {(isPreview || wide) && <div className="preview-column"><Preview draft={e.draft} number={e.fullNumber} canDownload={canDownload} actionsTarget={wide && !isPreview ? pdfActionsTarget : null} inlineActions={!wide || isPreview} showOpenPdf={!wide} /></div>}
         </div>
-        {!isPreview && <footer className="save-bar"><div className="save-bar-inner"><div className="save-total"><span>Total amount</span><strong>{money(e.totals.total)}</strong></div>
-          <div className="save-actions">
-            <Button type="submit" form="document-editor" busy={e.busy === "save"} busyLabel="Saving…" disabled={pending || (e.id !== null && !e.dirty)}>
-              {e.id ? "Save changes" : "Save document"}</Button></div></div></footer>}
+
       </>}
     </main>
     <Sheet open={more} title="Document actions" onClose={() => setMore(false)} compact>

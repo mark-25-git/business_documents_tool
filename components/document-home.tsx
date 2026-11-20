@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Plus, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, Plus, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { documentLabels, money } from "@/lib/document-model";
@@ -45,14 +45,15 @@ export function DocumentHome({ editor: e }: { editor: DocumentEditor }) {
           <div className="document-columns" aria-hidden="true"><span>Document</span><span>Customer</span><span>Date · newest first</span><span className="document-amount">Total (RM)</span></div>
           {documents.map(doc => {
             const date = new Date(doc.date.slice(0, 10) + "T12:00:00").toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" });
-            return <button key={doc.id} className="document-row" type="button"
+            return <div key={doc.id} className="document-entry"><button className="document-row" type="button"
               disabled={e.fetching || !!e.busy} onClick={() => void e.openDocument(doc.id)}>
               <span className="document-customer">{doc.customerName}</span>
               <span className="document-main"><span>{doc.docNumber}</span><span className="document-meta">{documentLabels[doc.type] || doc.type}</span></span>
               <span className="document-date">{date}</span>
               <strong className="document-amount">{money(doc.totalAmount)}</strong>
               <ChevronRight className="row-arrow" size={18} aria-hidden="true" />
-            </button>;
+            </button><Button variant="ghost" size="icon" className="document-duplicate" aria-label={`Duplicate ${doc.docNumber}`} title="Duplicate document"
+              disabled={e.fetching || !!e.busy} onClick={() => e.duplicateDocument(doc.id)}><Copy size={18} /></Button></div>;
           })}
         </div>}
     </section>

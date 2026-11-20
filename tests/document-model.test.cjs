@@ -94,3 +94,27 @@ test("customer and saved-document phones format before appearing in fields", () 
   assert.ok(validateDraft({ ...selected, differentShipping: true, shippingPhone: "+60" }).shippingPhone);
   assert.equal(validateDraft({ ...selected, billingPhone: "+6581234567" }).billingPhone, undefined);
 });
+
+
+test("duplicating preserves content while resetting identity, date, revision and status", () => {
+  const doc = { ...toPayload({ ...fixture(), differentShipping: true, shippingName: "Warehouse", shippingAddress: "Shipping address", notes: "Keep these notes" }, true),
+    id: "DOC-1", docNumber: "2611-001 (rev01)", date: "2020-01-01", status: "CANCELLED" };
+  doc.items = doc.items.map(item => ({ ...item, id: "OLD-ITEM", docId: doc.id }));
+  const original = JSON.stringify(doc);
+  const copy = moduleScope.exports.duplicateDraft(doc, [customer]);
+  assert.equal(copy.number, "");
+  assert.equal(copy.suffix, "");
+  assert.equal(copy.date, newDraft().date);
+  assert.equal(copy.status, "DRAFT");
+  assert.equal(copy.syncToMaster, false);
+  assert.equal(copy.shippingName, "Warehouse");
+  assert.equal(copy.notes, "Keep these notes");
+  assert.equal(copy.billingName, doc.customerName);
+  assert.equal(calculate(copy).total, doc.totalAmount);
+  assert.equal(toPayload(copy, false).docNumber, undefined);
+  assert.equal(toPayload(copy, false).status, "PENDING");
+  assert.equal(copy.items[0].id, undefined);
+  assert.equal(copy.items[0].docId, undefined);
+  copy.items[0].description = "Edited copy";
+  assert.equal(JSON.stringify(doc), original);
+});

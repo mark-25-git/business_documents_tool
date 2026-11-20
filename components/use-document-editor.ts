@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as api from "@/lib/api";
 import type { Customer, InvoiceDocument, LineItem } from "@/lib/types";
-import { calculate, chooseCustomer, fingerprint, fromDocument, newDraft, splitNumber, toPayload, validateDraft, type Draft, type DraftErrors } from "@/lib/document-model";
+import { calculate, chooseCustomer, duplicateDraft, fingerprint, fromDocument, newDraft, splitNumber, toPayload, validateDraft, type Draft, type DraftErrors } from "@/lib/document-model";
 
 type Feedback = { kind: "success" | "error" | "info"; text: string };
 type Confirmation = { title: string; message: string; confirmText: string; resolve: (accepted: boolean) => void };
@@ -136,6 +136,22 @@ export function useDocumentEditor() {
       setBaseline(fingerprint(newDraft(number)));
     }
   };
+  const duplicateDocument = async (sourceId: string) => {
+    if (locked.current || fetchingId.current) return;
+    if (hasDraft && dirty && !(await confirmAction("Discard unsaved changes?", "Duplicating a document will replace your current edits.", "Discard and duplicate"))) return;
+    locked.current = true; fetchingId.current = sourceId; setFetching(true); setFeedback(null);
+    try {
+      const source = await api.getDocument(sourceId);
+      if (!source) throw new Error("The document could not be loaded. Please try again.");
+      const defaults = newDraft();
+      const next = duplicateDraft(source, customers);
+      ++draftGeneration.current;
+      setDraft(next); setBaseline(fingerprint(defaults)); setId(null); setHasDraft(true); setErrors({});
+      navigate("edit", null);
+      setFeedback({ kind: "info", text: "Document duplicated. Edit the copy and save it as a new document. A new number will be assigned when saved." });
+    } catch (error) { setFeedback({ kind: "error", text: error instanceof Error ? error.message : "Could not duplicate document." }); }
+    finally { locked.current = false; fetchingId.current = null; setFetching(false); }
+  };
   const updateItem = (index: number, updates: Partial<LineItem>) => {
     setDraft(previous => ({ ...previous, items: previous.items.map((item, i) => {
       if (i !== index) return item;
@@ -205,6 +221,6 @@ export function useDocumentEditor() {
   };
   return { draft, patch, setDraft, id, dirty, hasDraft, totals, fullNumber, duplicate, screen, customers, documents,
     suggestions, loading, loadError, fetching: fetching || (!!docParam && docParam !== id && loading), busy, feedback, setFeedback, errors, confirmation, closeConfirmation,
-    reload, navigate, selectCustomer, openDocument, startNew, updateItem, save, changeStatus };
+    reload, navigate, selectCustomer, openDocument, startNew, duplicateDocument, updateItem, save, changeStatus };
 }
 export type DocumentEditor = ReturnType<typeof useDocumentEditor>;

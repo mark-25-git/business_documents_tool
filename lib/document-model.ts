@@ -49,6 +49,12 @@ export function fromDocument(doc: InvoiceDocument, customers: Customer[]): Draft
     showEmail: !!doc.billingEmail, items: items.length ? items : [emptyItem()], deliveryFee: doc.deliveryFee || 0, freeDelivery: !!doc.isFreeDelivery,
     taxEnabled: !!tax, taxTitle: tax?.description.slice(4) || "SST 10%", taxAmount: tax?.amount || 0, taxManual: !!tax };
 }
+export function duplicateDraft(doc: InvoiceDocument, customers: Customer[]): Draft {
+  const defaults = newDraft();
+  const source = fromDocument(doc, customers);
+  return { ...source, number: "", suffix: "", date: defaults.date, status: defaults.status, syncToMaster: false,
+    items: source.items.map(({ description, quantity, unitPrice, amount }) => ({ description, quantity, unitPrice, amount })) };
+}
 export function calculate(d: Draft) {
   const items = d.items.filter(item => item.description.trim());
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);

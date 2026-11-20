@@ -29,7 +29,7 @@ export function PdfCanvas({ url }: { url: string }) {
     const task = pdfjs.getDocument({ url, useSystemFonts: true });
     task.promise.then(pdf => { if (!disposed) setDocument(pdf); }).catch(failure => {
       if (!disposed) console.error("PDF preview loading failed:", failure);
-      if (!disposed) { setError("The embedded preview could not be displayed. Use Open PDF above."); setRendering(false); }
+      if (!disposed) { setError("The embedded preview could not be displayed. Please retry or save and download the PDF."); setRendering(false); }
     });
     return () => { disposed = true; void task.destroy(); };
   }, [url]);
@@ -53,7 +53,7 @@ export function PdfCanvas({ url }: { url: string }) {
         await task.promise;
       } catch (failure) {
         if (!disposed) console.error("PDF preview drawing failed:", failure);
-        if (!disposed) setError("The preview could not be drawn. Use Open PDF above.");
+        if (!disposed) setError("The preview could not be drawn. Please retry or save and download the PDF.");
       } finally { if (!disposed) setRendering(false); }
     }
     void render();

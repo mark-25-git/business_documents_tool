@@ -7,13 +7,13 @@ import { createPdfDocument, pdfFilename } from "./document-pdf-output";
 import { PdfCanvas } from "./pdf-canvas";
 import { type Draft } from "@/lib/document-model";
 
-export default function DocumentPreviewPane({ draft, number, canDownload, actionsTarget, inlineActions = true }: { draft: Draft; number: string; canDownload: boolean; actionsTarget?: HTMLElement | null; inlineActions?: boolean }) {
+export default function DocumentPreviewPane({ draft, number, canDownload, actionsTarget, inlineActions = true, showOpenPdf = true }: { draft: Draft; number: string; canDownload: boolean; actionsTarget?: HTMLElement | null; inlineActions?: boolean; showOpenPdf?: boolean }) {
   const document = useMemo(() => createPdfDocument(draft, number), [draft, number]);
   const [instance, update] = usePDF({ document });
   useEffect(() => { update(document); }, [document, update]);
   const actions = (
         <div className="toolbar-actions">
-          <a className="button button-ghost button-icon" aria-label="Open PDF in a new tab" title="Open PDF" href={instance.url || undefined} target="_blank" rel="noreferrer"><ExternalLink size={19} /></a>
+          {showOpenPdf && <a className="button button-ghost button-icon" aria-label="Open PDF in a new tab" title="Open PDF" href={instance.url || undefined} target="_blank" rel="noreferrer"><ExternalLink size={19} /></a>}
           {canDownload && <a className="button button-ghost button-icon" aria-label="Download PDF" title="Download PDF" href={instance.url || undefined} download={pdfFilename(draft, number)}><Download size={20} /></a>}
         </div>
   );
