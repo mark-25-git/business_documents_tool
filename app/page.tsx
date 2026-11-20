@@ -1,11 +1,12 @@
 "use client";
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { ChevronLeft, CheckCircle2, AlertCircle, Download, Eye, XCircle, Info, MoreHorizontal, Plus, RotateCcw, X } from "lucide-react";
+import { ChevronLeft, Copy, AlertCircle, Download, Eye, XCircle, MoreHorizontal, Plus, RotateCcw } from "lucide-react";
 import { useDocumentEditor } from "@/components/use-document-editor";
 import { DocumentHome } from "@/components/document-home";
 import { DocumentEditorForm } from "@/components/document-editor-form";
 import { Button } from "@/components/ui/button";
+import { StatusToast } from "@/components/ui/status-toast";
 import { Sheet } from "@/components/ui/sheet";
 import { documentLabels } from "@/lib/document-model";
 
@@ -17,6 +18,8 @@ function Workspace() {
   const [wide, setWide] = React.useState(false);
   const [pdfActionsTarget, setPdfActionsTarget] = React.useState<HTMLDivElement | null>(null);
   const [more, setMore] = React.useState(false);
+  const { setFeedback } = e;
+  const dismissFeedback = React.useCallback(() => setFeedback(null), [setFeedback]);
   const positions = React.useRef<Record<string, number>>({});
   React.useEffect(() => {
     const query = window.matchMedia("(min-width: 1024px)");
@@ -41,10 +44,6 @@ function Workspace() {
   const title = e.id ? e.fullNumber : `New ${documentLabels[e.draft.type].toLowerCase()}`;
   return <div className="app-shell">
     <main className={isHome ? "workspace home-workspace" : `workspace editor-workspace${isPreview ? " preview-workspace" : ""}`}>
-      {e.feedback && <div className={`feedback feedback-${e.feedback.kind}`} role={e.feedback.kind === "error" ? "alert" : "status"}>
-        {e.feedback.kind === "success" ? <CheckCircle2 size={20} /> : e.feedback.kind === "error" ? <XCircle size={20} /> : <Info size={20} />}
-        <span>{e.feedback.text}</span><Button size="icon" variant="ghost" aria-label="Dismiss notification" onClick={() => e.setFeedback(null)}><X size={18} /></Button></div>}
-      {e.fetching && <div role="status" className="fetch-status"><div className="loading-dot" />Opening document…</div>}
       <div hidden={!isHome}><DocumentHome editor={e} /></div>
       {!isHome && <>
         <header className="editor-heading toolbar">
@@ -73,8 +72,10 @@ function Workspace() {
 
       </>}
     </main>
+    <StatusToast message={e.feedback} loading={e.fetching} onDismiss={dismissFeedback} />
     <Sheet open={more} title="Document actions" onClose={() => setMore(false)} compact>
       <div className="form-stack"><Button variant="outline" onClick={() => { setMore(false); void e.startNew(); }}><Plus size={18} />Start a new document</Button>
+        {e.id && <Button variant="outline" disabled={pending} onClick={() => { setMore(false); void e.duplicateDocument(e.id!); }}><Copy size={18} />Duplicate document</Button>}
         {e.id && <Button variant={cancelled ? "outline" : "destructive"} onClick={() => { setMore(false); void e.changeStatus(cancelled); }}>
           {cancelled ? <RotateCcw size={18} /> : <XCircle size={18} />}{cancelled ? "Recover document" : "Cancel document"}</Button>}
         <p className="field-hint">Cancelled documents stay in your records and can be recovered.</p></div>
